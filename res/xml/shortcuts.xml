@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. Instant Deep Focus 25m Pomodoro Shortcut -->
+    <shortcut
+        android:shortcutId="shortcut_deep_focus"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_focus_short"
+        android:shortcutLongLabel="@string/shortcut_focus_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.focusflow.app"
+            android:targetClass="com.focusflow.app.MainActivity">
+            <extra android:name="START_FOCUS_SESSION" android:value="true" />
+            <extra android:name="NAVIGATE_TAB" android:value="Focus" />
+        </intent>
+    </shortcut>
+
+    <!-- 2. Mind Puzzle Arena Shortcut -->
+    <shortcut
+        android:shortcutId="shortcut_puzzles"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_puzzles_short"
+        android:shortcutLongLabel="@string/shortcut_puzzles_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.focusflow.app"
+            android:targetClass="com.focusflow.app.MainActivity">
+            <extra android:name="OPEN_PUZZLES" android:value="true" />
+        </intent>
+    </shortcut>
+
+    <!-- 3. Reels & Doomscrolling Shield Shortcut -->
+    <shortcut
+        android:shortcutId="shortcut_reels_shield"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_shield_short"
+        android:shortcutLongLabel="@string/shortcut_shield_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.focusflow.app"
+            android:targetClass="com.focusflow.app.MainActivity">
+            <extra android:name="OPEN_REELS_SHIELD" android:value="true" />
+        </intent>
+    </shortcut>
+
+    <!-- 4. Mindful Breath & Pause Shortcut -->
+    <shortcut
+        android:shortcutId="shortcut_mindful_pause"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_pause_short"
+        android:shortcutLongLabel="@string/shortcut_pause_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.focusflow.app"
+            android:targetClass="com.focusflow.app.MainActivity">
+            <extra android:name="TRIGGER_MINDFUL_PAUSE" android:value="true" />
+        </intent>
+    </shortcut>
+
+</shortcuts>

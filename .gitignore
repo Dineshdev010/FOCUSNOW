@@ -1,0 +1,11 @@
+# Old APK
+FocusFlow.apk
+
+# Gradle / Build
+.gradle/
+build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+Thumbs.db

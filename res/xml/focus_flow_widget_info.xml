@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/app_name"
+    android:initialKeyguardLayout="@layout/widget_focus_flow"
+    android:initialLayout="@layout/widget_focus_flow"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="70dp"
+    android:maxResizeWidth="500dp"
+    android:maxResizeHeight="250dp"
+    android:previewImage="@mipmap/ic_launcher"
+    android:previewLayout="@layout/widget_focus_flow"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

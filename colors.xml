@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_accent">#9BE564</color>
+    <color name="brand_dark">#0F1014</color>
+    <color name="brand_card">#181A22</color>
+    <color name="purple_200">#9BE564</color>
+    <color name="purple_500">#9BE564</color>
+    <color name="purple_700">#75B942</color>
+    <color name="teal_200">#A3E635</color>
+    <color name="teal_700">#4D7C0F</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

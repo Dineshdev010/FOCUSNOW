@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">FocusNow</string>
+    <string name="accessibility_service_desc">Enables FocusNow Reels &amp; Shorts Shield to block addictive infinite-scroll video feeds and enforce mindful pause interventions.</string>
+    
+    <!-- App Launcher Shortcuts -->
+    <string name="shortcut_focus_short">Deep Focus</string>
+    <string name="shortcut_focus_long">Start 25m Focus Session</string>
+    <string name="shortcut_puzzles_short">Mind Puzzles</string>
+    <string name="shortcut_puzzles_long">Mind Puzzle Arena</string>
+    <string name="shortcut_shield_short">Reels Shield</string>
+    <string name="shortcut_shield_long">Reels &amp; Doomscroll Shield</string>
+    <string name="shortcut_pause_short">Mindful Pause</string>
+    <string name="shortcut_pause_long">60s Breathwork Reset</string>
+</resources>
