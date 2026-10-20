@@ -60,6 +60,23 @@
             </intent-filter>
         </service>
 
+        <!-- Quick Settings Tile for Strict Work Mode -->
+        <service
+            android:name=".service.WorkModeTileService"
+            android:label="Work Mode"
+            android:icon="@mipmap/ic_launcher"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Floating Focus Island Live Countdown Overlay -->
+        <service
+            android:name=".service.FloatingFocusIslandService"
+            android:exported="false" />
+
         <!-- FocusNow Home Screen Widget -->
         <receiver
             android:name=".widget.FocusFlowWidgetProvider"

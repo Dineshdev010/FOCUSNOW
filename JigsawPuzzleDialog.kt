@@ -193,7 +193,42 @@ fun JigsawPuzzleDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Progressive Cognitive Friction & Daily Pass Tracker
+                val friction = viewModel.progressiveFrictionStatus
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FocusAccent.copy(alpha = 0.12f))
+                        .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("⚡", fontSize = 13.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${friction.currentTier.badge} • ${friction.currentTier.label}",
+                                color = FocusAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "${friction.passesUsedToday} unlocked today",
+                            color = FocusSecondary,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Puzzle Type Selector Tabs - 2 Clean Rows of 4 displaying all 8 games seamlessly
                 val row1 = listOf(

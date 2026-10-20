@@ -191,6 +191,78 @@ fun ProductiveWhitelistDialog(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Auto-Schedule Office Hours
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "⏰ Auto-Schedule Office Hours",
+                                    color = FocusWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Mon–Fri (${viewModel.workModeScheduleConfig.formattedRange()})",
+                                    color = if (viewModel.workModeScheduleConfig.isAutoScheduleEnabled) FocusAccent else FocusSecondary,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Switch(
+                                checked = viewModel.workModeScheduleConfig.isAutoScheduleEnabled,
+                                onCheckedChange = { enabled ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.toggleWorkModeAutoSchedule(enabled)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = FocusBackground,
+                                    checkedTrackColor = FocusAccent,
+                                    uncheckedThumbColor = FocusSecondary,
+                                    uncheckedTrackColor = FocusPanel
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Floating Focus Island Overlay
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "🏝️ Floating Focus Island",
+                                    color = FocusWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Floating countdown pill over apps during passes",
+                                    color = FocusSecondary,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Switch(
+                                checked = viewModel.isFloatingPillEnabled,
+                                onCheckedChange = { enabled ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.toggleFloatingPill(enabled)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = FocusBackground,
+                                    checkedTrackColor = FocusAccent,
+                                    uncheckedThumbColor = FocusSecondary,
+                                    uncheckedTrackColor = FocusPanel
+                                )
+                            )
+                        }
                     }
                 }
 

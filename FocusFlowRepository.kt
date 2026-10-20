@@ -1543,10 +1543,78 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putBoolean(KEY_WORK_MODE_ENABLED, enabled).apply()
     }
 
+    fun getWorkModeScheduleConfig(): WorkModeScheduleConfig {
+        val enabled = prefs.getBoolean(KEY_WORK_MODE_AUTO_SCHEDULE_ENABLED, false)
+        val startH = prefs.getInt(KEY_WORK_MODE_START_HOUR, 9)
+        val startM = prefs.getInt(KEY_WORK_MODE_START_MIN, 0)
+        val endH = prefs.getInt(KEY_WORK_MODE_END_HOUR, 17)
+        val endM = prefs.getInt(KEY_WORK_MODE_END_MIN, 0)
+        return WorkModeScheduleConfig(
+            isAutoScheduleEnabled = enabled,
+            startHour = startH,
+            startMinute = startM,
+            endHour = endH,
+            endMinute = endM
+        )
+    }
+
+    fun saveWorkModeScheduleConfig(config: WorkModeScheduleConfig) {
+        prefs.edit()
+            .putBoolean(KEY_WORK_MODE_AUTO_SCHEDULE_ENABLED, config.isAutoScheduleEnabled)
+            .putInt(KEY_WORK_MODE_START_HOUR, config.startHour)
+            .putInt(KEY_WORK_MODE_START_MIN, config.startMinute)
+            .putInt(KEY_WORK_MODE_END_HOUR, config.endHour)
+            .putInt(KEY_WORK_MODE_END_MIN, config.endMinute)
+            .apply()
+    }
+
     fun isWorkModeActive(): Boolean {
         if (isWorkModeEnabled()) return true
-        val activeSched = getCurrentlyActiveSchedule()
-        return activeSched != null && activeSched.id == "sched_work"
+        if (getWorkModeScheduleConfig().isCurrentlyActive()) return true
+        return false
+    }
+
+    // Daily Puzzle Pass Count & Progressive Friction
+    private fun getTodayDateString(): String {
+        val cal = java.util.Calendar.getInstance()
+        return String.format(java.util.Locale.US, "%04d-%02d-%02d",
+            cal.get(java.util.Calendar.YEAR),
+            cal.get(java.util.Calendar.MONTH) + 1,
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        )
+    }
+
+    fun getDailyPuzzlePassCount(): Int {
+        val savedDate = prefs.getString(KEY_DAILY_PUZZLE_PASS_DATE, "")
+        val today = getTodayDateString()
+        if (savedDate != today) {
+            prefs.edit().putString(KEY_DAILY_PUZZLE_PASS_DATE, today).putInt(KEY_DAILY_PUZZLE_PASS_COUNT, 0).apply()
+            return 0
+        }
+        return prefs.getInt(KEY_DAILY_PUZZLE_PASS_COUNT, 0)
+    }
+
+    fun incrementDailyPuzzlePassCount(): Int {
+        val count = getDailyPuzzlePassCount() + 1
+        val today = getTodayDateString()
+        prefs.edit().putString(KEY_DAILY_PUZZLE_PASS_DATE, today).putInt(KEY_DAILY_PUZZLE_PASS_COUNT, count).apply()
+        return count
+    }
+
+    fun getProgressiveFrictionStatus(): ProgressiveFrictionStatus {
+        val count = getDailyPuzzlePassCount()
+        val tier = when {
+            count == 0 -> FrictionTier.STANDARD
+            count == 1 -> FrictionTier.CHALLENGER
+            else -> FrictionTier.MASTERY
+        }
+        return ProgressiveFrictionStatus(passesUsedToday = count, currentTier = tier)
+    }
+
+    // Floating Focus Island Setting
+    fun isFloatingPillEnabled(): Boolean = prefs.getBoolean(KEY_FLOATING_PILL_ENABLED, true)
+    fun setFloatingPillEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_FLOATING_PILL_ENABLED, enabled).apply()
     }
 
     fun isWorkAppAllowed(pkg: String): Boolean {
@@ -2132,6 +2200,13 @@ class FocusFlowRepository(private val context: Context) {
         private const val KEY_EMERGENCY_PASS_EXPIRY = "key_emergency_pass_expiry"
         private const val KEY_DISABLED_PRODUCTIVE_APPS = "key_disabled_productive_apps"
         private const val KEY_WORK_MODE_ENABLED = "key_work_mode_enabled"
+        private const val KEY_WORK_MODE_AUTO_SCHEDULE_ENABLED = "key_work_mode_auto_schedule_enabled"
+        private const val KEY_WORK_MODE_START_HOUR = "key_work_mode_start_hour"
+        private const val KEY_WORK_MODE_START_MIN = "key_work_mode_start_min"
+        private const val KEY_WORK_MODE_END_HOUR = "key_work_mode_end_hour"
+        private const val KEY_WORK_MODE_END_MIN = "key_work_mode_end_min"
+        private const val KEY_DAILY_PUZZLE_PASS_COUNT = "key_daily_puzzle_pass_count"
+        private const val KEY_DAILY_PUZZLE_PASS_DATE = "key_daily_puzzle_pass_date"
         private const val KEY_NOTIFICATION_SHIELD_ENABLED = "key_notification_shield_enabled"
         private const val KEY_BATCHED_NOTIFICATIONS_JSON = "key_batched_notifications_json"
         private const val KEY_BONSAI_STAGE = "key_bonsai_stage"

@@ -400,19 +400,69 @@ fun FocusLockdownDialog(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Need Time? Solve Puzzle ⏱️",
+                                    color = FocusWhite,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(FocusAccent.copy(alpha = 0.2f))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = viewModel.progressiveFrictionStatus.currentTier.badge,
+                                        color = FocusAccent,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                             Text(
-                                text = "Need Time? Solve Puzzle ⏱️",
-                                color = FocusWhite,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Solve a mindful puzzle to unlock 5-min access",
-                                color = FocusAccent,
-                                fontSize = 11.sp
+                                text = "Solve a mindful puzzle to unlock 5-min access (${viewModel.progressiveFrictionStatus.passesUsedToday} used today)",
+                                color = FocusSecondary,
+                                fontSize = 10.sp
                             )
                         }
                         Text("Play →", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // AI Neuroscience Insight Card
+                val insight = remember { com.focusflow.app.model.NeuroscienceInsights.getRandomInsight() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(FocusPanelLight)
+                        .border(1.dp, FocusBorder, RoundedCornerShape(14.dp))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🧠", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "NEUROSCIENCE INSIGHT",
+                                color = FocusAccent,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = insight,
+                            color = FocusWhite.copy(alpha = 0.9f),
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
                     }
                 }
 

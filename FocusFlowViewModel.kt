@@ -600,6 +600,9 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                     launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                     context.startActivity(launchIntent)
                 }
+                if (repository.isFloatingPillEnabled()) {
+                    com.focusflow.app.service.FloatingFocusIslandService.start(context, appName.ifEmpty { "App" }, minutes * 60)
+                }
             } catch (_: Exception) {}
         }
     }
@@ -608,6 +611,10 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         repository.clearMicroSession()
         activeMicroSession = null
         showRegainTimesUpModal = false
+        try {
+            val context = getApplication<Application>().applicationContext
+            com.focusflow.app.service.FloatingFocusIslandService.stop(context)
+        } catch (_: Exception) {}
     }
 
     fun extendMicroSessionOneMinute(packageName: String, appName: String) {
@@ -985,6 +992,10 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                 emergencyPassSecondsLeft--
             }
             isEmergencyPassActive = false
+            try {
+                val context = getApplication<Application>().applicationContext
+                com.focusflow.app.service.FloatingFocusIslandService.stop(context)
+            } catch (_: Exception) {}
         }
         val targetPkg = if (appName.contains(".")) appName else focusLockdownPackageName
         if (targetPkg.isNotBlank()) {
@@ -995,6 +1006,12 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                     launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                     context.startActivity(launchIntent)
                 }
+            } catch (_: Exception) {}
+        }
+        if (repository.isFloatingPillEnabled()) {
+            try {
+                val context = getApplication<Application>().applicationContext
+                com.focusflow.app.service.FloatingFocusIslandService.start(context, appName.ifEmpty { "Pass" }, durationSeconds)
             } catch (_: Exception) {}
         }
     }
@@ -1017,6 +1034,10 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         showFocusLockdownModal = true
     }
 
+    var workModeScheduleConfig by mutableStateOf(repository.getWorkModeScheduleConfig())
+    var progressiveFrictionStatus by mutableStateOf(repository.getProgressiveFrictionStatus())
+    var isFloatingPillEnabled by mutableStateOf(repository.isFloatingPillEnabled())
+
     fun toggleWorkMode(enabled: Boolean) {
         repository.setWorkModeEnabled(enabled)
         isWorkModeEnabled = enabled
@@ -1030,6 +1051,36 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         repository.applyStrictWorkModePreset()
         isWorkModeEnabled = true
         productiveAppItems = repository.getProductiveAppItems()
+    }
+
+    fun toggleWorkModeAutoSchedule(enabled: Boolean) {
+        val updated = workModeScheduleConfig.copy(isAutoScheduleEnabled = enabled)
+        repository.saveWorkModeScheduleConfig(updated)
+        workModeScheduleConfig = updated
+        isWorkModeEnabled = repository.isWorkModeActive()
+    }
+
+    fun updateWorkModeScheduleTimes(startH: Int, startM: Int, endH: Int, endM: Int) {
+        val updated = workModeScheduleConfig.copy(
+            startHour = startH,
+            startMinute = startM,
+            endHour = endH,
+            endMinute = endM
+        )
+        repository.saveWorkModeScheduleConfig(updated)
+        workModeScheduleConfig = updated
+        isWorkModeEnabled = repository.isWorkModeActive()
+    }
+
+    fun toggleFloatingPill(enabled: Boolean) {
+        repository.setFloatingPillEnabled(enabled)
+        isFloatingPillEnabled = enabled
+        if (!enabled) {
+            try {
+                val context = getApplication<Application>().applicationContext
+                com.focusflow.app.service.FloatingFocusIslandService.stop(context)
+            } catch (_: Exception) {}
+        }
     }
 
     fun toggleProductiveApp(appId: String, enabled: Boolean) {
@@ -1523,6 +1574,8 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         repository.addFocusCoins(20)
         repository.incrementInterventionsAccepted()
         repository.addSavedScreenTime(5)
+        repository.incrementDailyPuzzlePassCount()
+        progressiveFrictionStatus = repository.getProgressiveFrictionStatus()
         val callback = puzzleSolvedCallback
         puzzleSolvedCallback = null
         if (callback != null) {

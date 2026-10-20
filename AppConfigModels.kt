@@ -683,3 +683,68 @@ object AchievementCatalog {
         Achievement("ach_walkaway_100", "Dopamine Sage", "Walk away from 100 temptations", "🌀", AchievementTier.GOLD, "Mindful", 100, coinReward = 250)
     )
 }
+
+data class WorkModeScheduleConfig(
+    val isAutoScheduleEnabled: Boolean = false,
+    val startHour: Int = 9,
+    val startMinute: Int = 0,
+    val endHour: Int = 17,
+    val endMinute: Int = 0,
+    val activeDays: Set<Int> = setOf(
+        java.util.Calendar.MONDAY,
+        java.util.Calendar.TUESDAY,
+        java.util.Calendar.WEDNESDAY,
+        java.util.Calendar.THURSDAY,
+        java.util.Calendar.FRIDAY
+    )
+) {
+    fun isCurrentlyActive(): Boolean {
+        if (!isAutoScheduleEnabled) return false
+        val now = java.util.Calendar.getInstance()
+        val currentDay = now.get(java.util.Calendar.DAY_OF_WEEK)
+        if (!activeDays.contains(currentDay)) return false
+
+        val currentMins = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+        val startMins = startHour * 60 + startMinute
+        val endMins = endHour * 60 + endMinute
+
+        return if (startMins <= endMins) {
+            currentMins in startMins..endMins
+        } else {
+            currentMins >= startMins || currentMins <= endMins
+        }
+    }
+
+    fun formattedRange(): String {
+        fun formatTime(h: Int, m: Int): String {
+            val amPm = if (h >= 12) "PM" else "AM"
+            val h12 = if (h == 0) 12 else if (h > 12) h - 12 else h
+            return String.format(java.util.Locale.US, "%d:%02d %s", h12, m, amPm)
+        }
+        return "${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}"
+    }
+}
+
+object NeuroscienceInsights {
+    val quotes = listOf(
+        "🧠 Prefrontal Resistance: Multitasking reduces operational IQ by 10 points. Staying in Teams & Outlook protects cognitive reserve.",
+        "⚡ Attention Residue: When you switch from work to social feeds, your brain takes an average of 23 minutes to regain deep focus.",
+        "🎯 The Flow Channel: Peak productivity only occurs after 15 minutes of uninterrupted immersion in a single task.",
+        "🔬 Dopamine Detox: By solving a mindful puzzle instead of seeking an easy dopamine hit, you rewire your brain's reward pathway.",
+        "💡 Deep Work Principle: High-value work requires zero context switching. Protect your working memory like gold.",
+        "🛡️ Neural Plasticity: Resisting impulse unlocks today makes tomorrow's self-control 40% easier."
+    )
+
+    fun getRandomInsight(): String = quotes.random()
+}
+
+enum class FrictionTier(val label: String, val badge: String, val description: String) {
+    STANDARD("Standard Friction", "Tier 1: Calm", "Standard 3x3 challenge"),
+    CHALLENGER("Prefrontal Effort", "Tier 2: Intermediate", "+20% cognitive friction"),
+    MASTERY("Mastery Resistance", "Tier 3: Advanced", "Maximum impulse deterrence")
+}
+
+data class ProgressiveFrictionStatus(
+    val passesUsedToday: Int,
+    val currentTier: FrictionTier
+)
