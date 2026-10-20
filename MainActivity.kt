@@ -158,13 +158,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
 
-                                        if (viewModel.showJigsawPuzzleModal) {
-                                            JigsawPuzzleDialog(
-                                                viewModel = viewModel,
-                                                onClose = { viewModel.showJigsawPuzzleModal = false }
-                                            )
-                                        }
-
                                         if (viewModel.showAchievementsScreen) {
                                             AchievementsScreen(
                                                 viewModel = viewModel,
@@ -280,6 +273,14 @@ class MainActivity : ComponentActivity() {
                                                 onDismiss = { viewModel.showGlobalSearchModal = false }
                                             )
                                         }
+
+                                        // Mind Puzzle Arena (Highest priority overlay - renders above all lockdowns and pass dialogs)
+                                        if (viewModel.showJigsawPuzzleModal) {
+                                            JigsawPuzzleDialog(
+                                                viewModel = viewModel,
+                                                onClose = { viewModel.closeJigsawPuzzle() }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -374,7 +375,8 @@ class MainActivity : ComponentActivity() {
             viewModel.appStage = AppStage.MAIN
             val appName = intent.getStringExtra("LOCKED_APP_NAME") ?: "Distracting App"
             val pkgName = intent.getStringExtra("LOCKED_PACKAGE_NAME") ?: ""
-            viewModel.triggerFocusLockdownInterception(appName, pkgName)
+            val isWorkMode = intent.getBooleanExtra("IS_WORK_MODE", false)
+            viewModel.triggerFocusLockdownInterception(appName, pkgName, isWorkMode)
         }
         val triggerRegainTimesUp = intent.hasExtraFlag("TRIGGER_REGAIN_TIMES_UP")
         if (triggerRegainTimesUp) {

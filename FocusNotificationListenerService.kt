@@ -61,8 +61,8 @@ class FocusNotificationListenerService : NotificationListenerService() {
             return
         }
 
-        // 6. Never silence user-whitelisted productive apps (Slack, Notion, Docs, Calendar, etc.)
-        if (repository.isProductiveAppAllowed(pkg)) {
+        // 6. Never silence user-whitelisted productive apps or work apps in Work Mode (Teams, Outlook, WhatsApp, Slack, etc.)
+        if (repository.isProductiveAppAllowed(pkg) || (repository.isWorkModeActive() && repository.isWorkAppAllowed(pkg))) {
             return
         }
 
@@ -91,7 +91,6 @@ class FocusNotificationListenerService : NotificationListenerService() {
 
         val text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()
             ?: extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-            ?: extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
             ?: "Content received during focus session"
 
         val (appName, emoji, category) = resolveAppInfo(pkg)
@@ -114,6 +113,9 @@ class FocusNotificationListenerService : NotificationListenerService() {
 
     private fun resolveAppInfo(pkg: String): Triple<String, String, String> {
         return when (pkg) {
+            "com.microsoft.teams", "com.microsoft.teams.v2" -> Triple("Microsoft Teams", "👥", "Work")
+            "com.microsoft.office.outlook", "com.microsoft.outlook" -> Triple("Microsoft Outlook", "📧", "Work")
+            "com.whatsapp", "com.whatsapp.w4b" -> Triple("WhatsApp", "💬", "Work")
             "com.instagram.android" -> Triple("Instagram", "📸", "Social")
             "com.google.android.youtube" -> Triple("YouTube", "▶️", "Media")
             "com.zhiliaoapp.musically", "com.ss.android.ugc.trill" -> Triple("TikTok", "🎵", "Social")
@@ -121,7 +123,6 @@ class FocusNotificationListenerService : NotificationListenerService() {
             "com.twitter.android" -> Triple("X (Twitter)", "🐦", "Social")
             "com.facebook.katana" -> Triple("Facebook", "👥", "Social")
             "com.reddit.frontpage" -> Triple("Reddit", "🤖", "Social")
-            "com.whatsapp" -> Triple("WhatsApp", "💬", "Chat")
             "org.telegram.messenger" -> Triple("Telegram", "✈️", "Chat")
             "com.discord" -> Triple("Discord", "🎮", "Community")
             "com.pinterest" -> Triple("Pinterest", "📌", "Inspiration")

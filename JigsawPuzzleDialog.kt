@@ -339,7 +339,7 @@ fun JigsawPuzzleDialog(
                                     .height(48.dp)
                             ) {
                                 Text(
-                                    "Claim 5-Min Break ⏱️",
+                                    if (viewModel.puzzleSolvedCallback != null) "Unlock 5-Min Time Pass ⏱️" else "Claim 5-Min Break ⏱️",
                                     color = FocusBackground,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp

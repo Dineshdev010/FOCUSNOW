@@ -1520,18 +1520,61 @@ class FocusFlowRepository(private val context: Context) {
 
     // Productive Apps Whitelist
     private val defaultProductiveApps = listOf(
-        ProductiveAppItem("app_phone", "Phone & Voice Calls", "com.google.android.dialer", "📞", "Communication", isEnabled = true, isEssential = true),
+        ProductiveAppItem("app_phone", "Phone & Voice Calls", "com.google.android.dialer", "📞", "Communication", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_teams", "Microsoft Teams", "com.microsoft.teams", "👥", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_outlook", "Microsoft Outlook", "com.microsoft.office.outlook", "📧", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_whatsapp", "WhatsApp Messenger", "com.whatsapp", "💬", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_office365", "Microsoft 365 (Word/Excel)", "com.microsoft.office.officehubrow", "📊", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_slack", "Slack Work Chat", "com.slack", "💬", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_docs", "Docs & Drive", "com.google.android.apps.docs", "📄", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_calendar", "Calendar", "com.google.android.calendar", "📅", "Schedule", isEnabled = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_notes", "Notes & Keep", "com.google.android.keep", "📝", "Productivity", isEnabled = true),
         ProductiveAppItem("app_calc", "Calculator", "com.google.android.calculator", "🧮", "Utility", isEnabled = true),
         ProductiveAppItem("app_clock", "Clock & Timer", "com.google.android.deskclock", "⏰", "Utility", isEnabled = true),
-        ProductiveAppItem("app_notes", "Notes & Keep", "com.google.android.keep", "📝", "Productivity", isEnabled = true),
         ProductiveAppItem("app_notion", "Notion", "notion.id", "💡", "Productivity", isEnabled = true),
         ProductiveAppItem("app_tasks", "Google Tasks", "com.google.android.apps.tasks", "✅", "Productivity", isEnabled = true),
-        ProductiveAppItem("app_docs", "Docs & Drive", "com.google.android.apps.docs", "📄", "Work", isEnabled = true),
-        ProductiveAppItem("app_slack", "Slack Work Chat", "com.slack", "💬", "Work", isEnabled = true),
-        ProductiveAppItem("app_calendar", "Calendar", "com.google.android.calendar", "📅", "Schedule", isEnabled = true),
         ProductiveAppItem("app_github", "GitHub", "com.github.android", "🐙", "Dev", isEnabled = true),
         ProductiveAppItem("app_termux", "Termux Terminal", "com.termux", "💻", "Dev", isEnabled = true)
     )
+
+    fun isWorkModeEnabled(): Boolean = prefs.getBoolean(KEY_WORK_MODE_ENABLED, false)
+
+    fun setWorkModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_WORK_MODE_ENABLED, enabled).apply()
+    }
+
+    fun isWorkModeActive(): Boolean {
+        if (isWorkModeEnabled()) return true
+        val activeSched = getCurrentlyActiveSchedule()
+        return activeSched != null && activeSched.id == "sched_work"
+    }
+
+    fun isWorkAppAllowed(pkg: String): Boolean {
+        val target = pkg.lowercase()
+        // 1. Microsoft Teams
+        if (target == "com.microsoft.teams" || target == "com.microsoft.teams.v2" || target.contains("teams")) return true
+        // 2. Microsoft Outlook
+        if (target == "com.microsoft.office.outlook" || target == "com.microsoft.outlook" || target.contains("outlook")) return true
+        // 3. WhatsApp & WhatsApp Business
+        if (target == "com.whatsapp" || target == "com.whatsapp.w4b" || target.startsWith("com.whatsapp")) return true
+        // 4. Microsoft Office Suite (Word, Excel, PPT, 365 Office, OneNote, OneDrive)
+        if (target.startsWith("com.microsoft.office") || target == "com.microsoft.skydrive") return true
+        // 5. Work Chat & Documents (Slack, Google Docs)
+        if (target == "com.slack" || target == "com.google.android.apps.docs" || target.startsWith("com.google.android.apps.docs")) return true
+        return false
+    }
+
+    fun applyStrictWorkModePreset() {
+        val strictWorkIds = setOf("app_phone", "app_teams", "app_outlook", "app_whatsapp", "app_office365", "app_slack", "app_docs", "app_calendar")
+        val disabledSet = defaultProductiveApps
+            .filter { !strictWorkIds.contains(it.id) && !it.isEssential }
+            .map { it.id }
+            .toSet()
+        prefs.edit()
+            .putStringSet(KEY_DISABLED_PRODUCTIVE_APPS, disabledSet)
+            .putBoolean(KEY_WORK_MODE_ENABLED, true)
+            .apply()
+    }
 
     fun getProductiveAppItems(): List<ProductiveAppItem> {
         val disabledSet = prefs.getStringSet(KEY_DISABLED_PRODUCTIVE_APPS, emptySet()) ?: emptySet()
@@ -1552,11 +1595,22 @@ class FocusFlowRepository(private val context: Context) {
     }
 
     fun isProductiveAppAllowed(pkg: String): Boolean {
+        // If Work Mode is active, check work app allowance
+        if (isWorkModeActive() && isWorkAppAllowed(pkg)) {
+            return true
+        }
         val allowedItems = getProductiveAppItems().filter { it.isEnabled }
+        val target = pkg.lowercase()
         return allowedItems.any { item ->
             val p = item.packageName.lowercase()
-            val target = pkg.lowercase()
-            target == p || target.startsWith(p) || (p.contains("calculator") && target.contains("calculator")) || (p.contains("dialer") && target.contains("dialer")) || (p.contains("clock") && target.contains("clock"))
+            target == p || target.startsWith(p) ||
+                (p.contains("calculator") && target.contains("calculator")) ||
+                (p.contains("dialer") && target.contains("dialer")) ||
+                (p.contains("clock") && target.contains("clock")) ||
+                (p == "com.microsoft.teams" && (target.contains("teams") || target.startsWith("com.microsoft.teams"))) ||
+                (p == "com.microsoft.office.outlook" && (target.contains("outlook") || target == "com.microsoft.outlook" || target.startsWith("com.microsoft.office.outlook"))) ||
+                (p == "com.whatsapp" && (target == "com.whatsapp" || target == "com.whatsapp.w4b" || target.startsWith("com.whatsapp"))) ||
+                (p.contains("office") && target.startsWith("com.microsoft.office"))
         }
     }
 
@@ -2077,6 +2131,7 @@ class FocusFlowRepository(private val context: Context) {
         private const val KEY_EMERGENCY_PASS_APP = "key_emergency_pass_app"
         private const val KEY_EMERGENCY_PASS_EXPIRY = "key_emergency_pass_expiry"
         private const val KEY_DISABLED_PRODUCTIVE_APPS = "key_disabled_productive_apps"
+        private const val KEY_WORK_MODE_ENABLED = "key_work_mode_enabled"
         private const val KEY_NOTIFICATION_SHIELD_ENABLED = "key_notification_shield_enabled"
         private const val KEY_BATCHED_NOTIFICATIONS_JSON = "key_batched_notifications_json"
         private const val KEY_BONSAI_STAGE = "key_bonsai_stage"

@@ -78,6 +78,8 @@ fun FocusLockdownDialog(
     val secs = remainingSecs % 60
     val timeFormatted = String.format("%02d:%02d", mins, secs)
 
+    val isWorkMode = viewModel.isWorkModeInterception || viewModel.isWorkModeEnabled || viewModel.repository.isWorkModeActive()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -109,13 +111,13 @@ fun FocusLockdownDialog(
                         .border(2.dp, FocusAccent, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🔒", fontSize = 32.sp)
+                    Text(if (isWorkMode) "💼" else "🔒", fontSize = 32.sp)
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "DEEP FOCUS LOCKDOWN",
+                    text = if (isWorkMode) "STRICT WORK MODE ACTIVE" else "DEEP FOCUS LOCKDOWN",
                     color = FocusAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -125,7 +127,7 @@ fun FocusLockdownDialog(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Distraction Blocked",
+                    text = if (isWorkMode) "Non-Work App Blocked" else "Distraction Blocked",
                     color = FocusWhite,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -135,7 +137,10 @@ fun FocusLockdownDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Focus session in progress. Only phone calls and productive apps are accessible.",
+                    text = if (isWorkMode)
+                        "Work Mode is active. Only office tools (Teams, Outlook, WhatsApp) & voice calls work. Non-work apps remain locked."
+                    else
+                        "Focus session in progress. Only phone calls and productive apps are accessible.",
                     color = FocusSecondary,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
@@ -169,7 +174,7 @@ fun FocusLockdownDialog(
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    text = "LOCKED",
+                                    text = if (isWorkMode) "WORK RESTRICTED" else "LOCKED",
                                     color = Color(0xFFEF4444),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
@@ -194,13 +199,13 @@ fun FocusLockdownDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "⏳ Session Remaining",
+                                text = if (isWorkMode && !viewModel.isTimerRunning) "💼 Mode Status" else "⏳ Session Remaining",
                                 color = FocusSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "$timeFormatted Left",
+                                text = if (viewModel.isTimerRunning) "$timeFormatted Left" else if (isWorkMode) "Office Work Shift 🏢" else "Active",
                                 color = FocusAccent,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.ExtraBold
@@ -221,58 +226,199 @@ fun FocusLockdownDialog(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("📞", fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Phone & Incoming Calls",
-                                    color = FocusWhite,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                        if (isWorkMode) {
+                            // Detailed Office & Work apps allowed list
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("👥", fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Microsoft Teams", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                }
+                                Text("🟢 ALLOWED", color = FocusAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
-                            Text(
-                                text = "🟢 UNRESTRICTED",
-                                color = FocusAccent,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("📧", fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Microsoft Outlook", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                }
+                                Text("🟢 ALLOWED", color = FocusAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("💬", fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("WhatsApp & Chat", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                }
+                                Text("🟢 ALLOWED", color = FocusAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("📞", fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Phone & Voice Calls", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                }
+                                Text("🟢 UNRESTRICTED", color = FocusAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
 
-                        val allowedCount = viewModel.productiveAppItems.count { it.isEnabled }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("💼", fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                "🚀 Quick Switch to Office Tools:",
+                                color = FocusSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    Triple("👥 Teams", "com.microsoft.teams", CategoryWork),
+                                    Triple("📧 Outlook", "com.microsoft.office.outlook", CategoryUrgent),
+                                    Triple("💬 WhatsApp", "com.whatsapp", CategoryPersonal)
+                                ).forEach { (label, pkg, color) ->
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(color.copy(alpha = 0.15f))
+                                            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                            .clickable {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                viewModel.launchAppByPackage(pkg)
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            color = FocusWhite,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("📞", fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Phone & Incoming Calls",
+                                        color = FocusWhite,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                                 Text(
-                                    text = "Productive Apps ($allowedCount Active)",
-                                    color = FocusWhite,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
+                                    text = "🟢 UNRESTRICTED",
+                                    color = FocusAccent,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                            Text(
-                                text = "🟢 UNRESTRICTED",
-                                color = FocusAccent,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+
+                            val allowedCount = viewModel.productiveAppItems.count { it.isEnabled }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("💼", fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Productive Apps ($allowedCount Active)",
+                                        color = FocusWhite,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Text(
+                                    text = "🟢 UNRESTRICTED",
+                                    color = FocusAccent,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Primary Action: Return to Deep Focus
+                // Solve Puzzle to Unlock Time Pass Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FocusPanelLight),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.2.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            val target = viewModel.focusLockdownPackageName.ifEmpty { viewModel.focusLockdownAppName }
+                            viewModel.openJigsawPuzzle("Solve puzzle to unlock 5 minutes for ${appName.ifEmpty { "this app" }}") {
+                                viewModel.grantEmergencyPass(target, 300)
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(FocusAccent.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🧩", fontSize = 22.sp)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Need Time? Solve Puzzle ⏱️",
+                                color = FocusWhite,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Solve a mindful puzzle to unlock 5-min access",
+                                color = FocusAccent,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Text("Play →", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Primary Action: Return to Deep Focus / Work Mode
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -285,7 +431,7 @@ fun FocusLockdownDialog(
                         .height(50.dp)
                 ) {
                     Text(
-                        text = "Return to Deep Focus 🎯",
+                        text = if (isWorkMode) "Return to Work Mode 💼" else "Return to Deep Focus 🎯",
                         color = FocusBackground,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
@@ -342,13 +488,16 @@ fun FocusLockdownDialog(
 
                 // Abort session option with penalty
                 Text(
-                    text = "Give up focus session (-15 🪙 penalty)",
+                    text = if (isWorkMode) "Exit Work Mode & Return Home" else "Give up focus session (-15 🪙 penalty)",
                     color = FocusSecondary.copy(alpha = 0.7f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (isWorkMode) {
+                                viewModel.toggleWorkMode(false)
+                            }
                             onGiveUpSession()
                         }
                         .padding(vertical = 4.dp, horizontal = 8.dp)

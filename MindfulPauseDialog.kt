@@ -549,6 +549,39 @@ fun MindfulPauseDialog(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    // Priority: Solve Mind Puzzle to Earn +5 Extra Minutes
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.openJigsawPuzzle(
+                                reason = "Time's up for $appName! Solve a mindful puzzle to earn 5 extra minutes.",
+                                onSolved = {
+                                    viewModel.startMicroSession(packageName, appName, 5, "Puzzle Time Unlock")
+                                    onClose()
+                                }
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = FocusAccent.copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .border(1.5.dp, FocusAccent, RoundedCornerShape(16.dp))
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🧩", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Solve Puzzle to Unlock Time (+5m)",
+                                color = FocusAccent,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     // Secondary: Extend 1 Minute with 15s delay penalty
                     Button(
                         onClick = {

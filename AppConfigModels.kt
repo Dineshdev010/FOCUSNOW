@@ -216,7 +216,8 @@ data class ProductiveAppItem(
     val emoji: String,
     val category: String,
     val isEnabled: Boolean = true,
-    val isEssential: Boolean = false
+    val isEssential: Boolean = false,
+    val isWorkModeOfficeApp: Boolean = false
 )
 
 data class BatchedNotification(

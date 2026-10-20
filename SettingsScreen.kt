@@ -429,13 +429,20 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                 isChecked = viewModel.isNotificationShieldEnabled,
                 onToggle = { viewModel.toggleNotificationShield(it) }
             )
-            SettingsDivider()
             SettingsActionRow(
                 label = "Productive Whitelist",
                 emoji = "✅",
                 subtitle = "Essential apps allowed during focus lockdown",
                 actionLabel = "Configure",
                 onClick = { viewModel.showProductiveWhitelistModal = true }
+            )
+            SettingsDivider()
+            SettingsToggleRow(
+                label = "Strict Work Mode",
+                emoji = "💼",
+                subtitle = "Only Teams, Outlook, WhatsApp & office tools work",
+                isChecked = viewModel.isWorkModeEnabled,
+                onToggle = { viewModel.toggleWorkMode(it) }
             )
             SettingsDivider()
             SettingsActionRow(

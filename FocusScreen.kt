@@ -873,6 +873,7 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 val enabledProductiveCount = viewModel.productiveAppItems.count { it.isEnabled }
+                val isWorkMode = viewModel.isWorkModeEnabled || viewModel.repository.isWorkModeActive()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -905,6 +906,60 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                             fontWeight = FontWeight.Bold
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Strict Work Mode Row (Teams, Outlook & WhatsApp Only)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isWorkMode) FocusAccent.copy(alpha = 0.12f) else FocusPanelLight)
+                        .border(
+                            1.dp,
+                            if (isWorkMode) FocusAccent.copy(alpha = 0.4f) else FocusPanelBorder,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.toggleWorkMode(!viewModel.isWorkModeEnabled)
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text("💼", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Strict Work Mode",
+                                color = FocusWhite,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isWorkMode) "Teams, Outlook & WhatsApp only" else "Restrict to office tools",
+                                color = if (isWorkMode) FocusAccent else FocusSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = viewModel.isWorkModeEnabled,
+                        onCheckedChange = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.toggleWorkMode(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = FocusBackground,
+                            checkedTrackColor = FocusAccent,
+                            uncheckedThumbColor = FocusSecondary,
+                            uncheckedTrackColor = FocusPanel
+                        )
+                    )
                 }
             }
         }

@@ -109,6 +109,8 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     var showFocusLockdownModal by mutableStateOf(false)
     var focusLockdownAppName by mutableStateOf("Distracting App")
     var focusLockdownPackageName by mutableStateOf("")
+    var isWorkModeInterception by mutableStateOf(false)
+    var isWorkModeEnabled by mutableStateOf(false)
     var showProductiveWhitelistModal by mutableStateOf(false)
     var productiveAppItems by mutableStateOf<List<ProductiveAppItem>>(emptyList())
         private set
@@ -336,6 +338,7 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         com.focusflow.app.ui.theme.applyThemeById(equippedTheme)
         selectedJigsawTheme = repository.getSelectedJigsawTheme()
         productiveAppItems = repository.getProductiveAppItems()
+        isWorkModeEnabled = repository.isWorkModeEnabled()
         isNotificationShieldEnabled = repository.isNotificationShieldEnabled()
         checkAndRefreshDeviceUsage()
         batchedNotifications = repository.getBatchedNotifications()
@@ -968,14 +971,14 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         deviceUsageStats = com.focusflow.app.util.DeviceUsageTracker.getRealDailyAppUsage(context)
     }
 
-    fun grantEmergencyPass(appName: String = "Instagram Reels") {
+    fun grantEmergencyPass(appName: String = "Instagram Reels", durationSeconds: Int = 60) {
         emergencyPassApp = appName
         isEmergencyPassActive = true
-        emergencyPassSecondsLeft = 60
+        emergencyPassSecondsLeft = durationSeconds
         showEmergencyPassModal = false
         showMindfulPauseModal = false
         showFocusLockdownModal = false
-        repository.setEmergencyPass(appName, 60)
+        repository.setEmergencyPass(appName, durationSeconds)
         viewModelScope.launch {
             while (emergencyPassSecondsLeft > 0) {
                 delay(1000L)
@@ -983,12 +986,50 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             }
             isEmergencyPassActive = false
         }
+        val targetPkg = if (appName.contains(".")) appName else focusLockdownPackageName
+        if (targetPkg.isNotBlank()) {
+            try {
+                val context = getApplication<Application>().applicationContext
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPkg)
+                if (launchIntent != null) {
+                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                    context.startActivity(launchIntent)
+                }
+            } catch (_: Exception) {}
+        }
     }
 
-    fun triggerFocusLockdownInterception(appName: String, packageName: String) {
+    fun launchAppByPackage(pkg: String) {
+        try {
+            val context = getApplication<Application>().applicationContext
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
+            if (launchIntent != null) {
+                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                context.startActivity(launchIntent)
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun triggerFocusLockdownInterception(appName: String, packageName: String, isWorkMode: Boolean = false) {
         focusLockdownAppName = appName
         focusLockdownPackageName = packageName
+        isWorkModeInterception = isWorkMode || repository.isWorkModeActive()
         showFocusLockdownModal = true
+    }
+
+    fun toggleWorkMode(enabled: Boolean) {
+        repository.setWorkModeEnabled(enabled)
+        isWorkModeEnabled = enabled
+        if (enabled) {
+            repository.applyStrictWorkModePreset()
+            productiveAppItems = repository.getProductiveAppItems()
+        }
+    }
+
+    fun applyStrictWorkModePreset() {
+        repository.applyStrictWorkModePreset()
+        isWorkModeEnabled = true
+        productiveAppItems = repository.getProductiveAppItems()
     }
 
     fun toggleProductiveApp(appId: String, enabled: Boolean) {
@@ -1459,21 +1500,37 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         appStage = AppStage.ONBOARDING
     }
 
+    var puzzleSolvedCallback: (() -> Unit)? = null
+
     // Jigsaw Puzzle Break Challenge
-    fun openJigsawPuzzle(reason: String = "Solve puzzle to unlock a 5-minute break") {
+    fun openJigsawPuzzle(reason: String = "Solve puzzle to unlock a 5-minute break", onSolved: (() -> Unit)? = null) {
         jigsawBreakReason = reason
+        puzzleSolvedCallback = onSolved
         showJigsawPuzzleModal = true
+    }
+
+    fun closeJigsawPuzzle() {
+        showJigsawPuzzleModal = false
+        puzzleSolvedCallback = null
     }
 
     fun onJigsawPuzzleSolved() {
         showJigsawPuzzleModal = false
         showMindfulPauseModal = false
+        showFocusLockdownModal = false
+        showEmergencyPassModal = false
         isStrictLockActive = false
         repository.addFocusCoins(20)
         repository.incrementInterventionsAccepted()
         repository.addSavedScreenTime(5)
-        selectMode(1) // 5-minute short break
-        startTimer()
+        val callback = puzzleSolvedCallback
+        puzzleSolvedCallback = null
+        if (callback != null) {
+            callback.invoke()
+        } else {
+            selectMode(1) // 5-minute short break
+            startTimer()
+        }
         refreshStateFromRepository()
     }
 

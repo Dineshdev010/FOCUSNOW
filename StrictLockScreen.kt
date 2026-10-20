@@ -149,7 +149,9 @@ fun StrictLockScreen(viewModel: FocusFlowViewModel) {
                     Button(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.openJigsawPuzzle("Strict Lock: Solve to unlock 5-min break")
+                            viewModel.openJigsawPuzzle("Strict Lock: Solve to unlock 5-min break") {
+                                viewModel.grantEmergencyPass(viewModel.focusLockdownTargetApp ?: "", 300)
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
                         shape = RoundedCornerShape(12.dp)

@@ -236,6 +236,20 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
 
         if (isSystemEssentialPackage(pkg)) return
 
+        // 0a. STRICT WORK MODE INTERCEPTION
+        // When Work Mode is ON, ONLY office products (Teams, Outlook, Office 365), WhatsApp, and phone calls can run.
+        // All non-work apps (games, social media, entertainment) are immediately locked.
+        if (repository.isWorkModeActive()) {
+            if (!isAppAllowedInWorkMode(pkg)) {
+                lastInterceptionTime = now
+                triggerHapticInterception()
+                repository.incrementReelsBlocked()
+                FocusFlowWidgetProvider.updateAllWidgets(applicationContext)
+                launchFocusLockdown(pkg, isWorkMode = true)
+                return
+            }
+        }
+
         // 0. DEEP FOCUS LOCKDOWN MODE
         // When Focus session is active in the app, ONLY calls and productive apps are allowed!
         // All other apps and activities are locked immediately.
@@ -245,7 +259,7 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                 triggerHapticInterception()
                 repository.incrementReelsBlocked()
                 FocusFlowWidgetProvider.updateAllWidgets(applicationContext)
-                launchFocusLockdown(pkg)
+                launchFocusLockdown(pkg, isWorkMode = false)
                 return
             }
         }
@@ -349,11 +363,12 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         val isStrictMode = repository.isStrictModeEnabled()
         val isStrictFocusActive = isStrictMode && repository.isFocusSessionActive()
         val isProductive = repository.isProductiveAppAllowed(pkg)
+        val isWorkAllowed = repository.isWorkModeActive() && repository.isWorkAppAllowed(pkg)
 
         // For YouTube: if NOT explicitly whole-app blocked by user, keep YouTube accessible for long-form study videos (Shorts is handled above)
         val isYouTubeExemptFromWholeBlock = (pkg == "com.google.android.youtube") && !isExplicitlyBlocked
 
-        if (!isYouTubeExemptFromWholeBlock && !isProductive) {
+        if (!isYouTubeExemptFromWholeBlock && !isProductive && !isWorkAllowed) {
             val shouldBlock = isExplicitlyBlocked ||
                     (matchedApp != null && matchedApp.isBlocked) ||
                     isCurfewActive ||
@@ -637,6 +652,25 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         } catch (ignored: Exception) {}
     }
 
+    private fun isAppAllowedInWorkMode(pkg: String): Boolean {
+        // 1. FocusFlow app itself is always allowed
+        if (pkg == packageName) return true
+
+        // 2. Active emergency pass for this app
+        if (repository.isEmergencyPassActiveFor(pkg)) return true
+
+        // 3. System core essentials (launcher, keyboards, settings)
+        if (isSystemEssentialPackage(pkg)) return true
+
+        // 4. Phone & calling apps
+        if (isPhoneOrCallApp(pkg)) return true
+
+        // 5. Office Products & WhatsApp (Teams, Outlook, WhatsApp, MS 365, Slack, Docs)
+        if (repository.isWorkAppAllowed(pkg)) return true
+
+        return false
+    }
+
     private fun isAppAllowedDuringFocus(pkg: String): Boolean {
         // 1. FocusFlow app itself is always allowed
         if (pkg == packageName) return true
@@ -650,7 +684,10 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         // 4. Phone & calling apps
         if (isPhoneOrCallApp(pkg)) return true
 
-        // 5. Productive whitelist apps
+        // 5. Work app allowed if Work Mode is active
+        if (repository.isWorkModeActive() && repository.isWorkAppAllowed(pkg)) return true
+
+        // 6. Productive whitelist apps
         if (repository.isProductiveAppAllowed(pkg)) return true
 
         return false
@@ -717,7 +754,7 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun launchFocusLockdown(pkg: String) {
+    private fun launchFocusLockdown(pkg: String, isWorkMode: Boolean = false) {
         val appName = try {
             val appInfo = packageManager.getApplicationInfo(pkg, 0)
             packageManager.getApplicationLabel(appInfo).toString()
@@ -742,6 +779,7 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                 putExtra("TRIGGER_FOCUS_LOCKDOWN", true)
                 putExtra("LOCKED_APP_NAME", appName)
                 putExtra("LOCKED_PACKAGE_NAME", pkg)
+                putExtra("IS_WORK_MODE", isWorkMode)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 val options = ActivityOptions.makeBasic().apply {

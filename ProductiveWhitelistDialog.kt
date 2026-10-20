@@ -114,6 +114,88 @@ fun ProductiveWhitelistDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Work Mode Quick Preset & Toggle Card
+                val isWorkMode = viewModel.isWorkModeEnabled || viewModel.repository.isWorkModeActive()
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isWorkMode) FocusAccent.copy(alpha = 0.12f) else FocusPanelLight
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            1.dp,
+                            if (isWorkMode) FocusAccent.copy(alpha = 0.6f) else FocusPanelBorder,
+                            RoundedCornerShape(16.dp)
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Text("💼", fontSize = 18.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Strict Work Mode",
+                                        color = FocusWhite,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Teams, Outlook & WhatsApp only",
+                                        color = if (isWorkMode) FocusAccent else FocusSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            Switch(
+                                checked = viewModel.isWorkModeEnabled,
+                                onCheckedChange = { enabled ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.toggleWorkMode(enabled)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = FocusBackground,
+                                    checkedTrackColor = FocusAccent,
+                                    uncheckedThumbColor = FocusSecondary,
+                                    uncheckedTrackColor = FocusPanel
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Quick Preset Button: Teams, Outlook & WhatsApp Only
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isWorkMode) FocusAccent.copy(alpha = 0.2f) else FocusPanel)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.applyStrictWorkModePreset()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "⚡ Set Office Preset (Teams + Outlook + WhatsApp)",
+                                color = FocusAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 // Explanatory Banner
                 Box(
                     modifier = Modifier
@@ -123,7 +205,10 @@ fun ProductiveWhitelistDialog(
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = "🛡️ When Deep Focus starts, only incoming/outgoing calls and enabled productive tools below remain unlocked. All games, social media, and web doomscrolling are intercepted.",
+                        text = if (isWorkMode)
+                            "🔒 Work Mode Active: Only office products (Teams, Outlook, WhatsApp) & vital voice calls remain accessible. All social media and entertainment apps lock automatically."
+                        else
+                            "🛡️ When Deep Focus starts, only incoming/outgoing calls and enabled productive tools below remain unlocked. All games, social media, and web doomscrolling are intercepted.",
                         color = FocusSecondary,
                         fontSize = 11.sp,
                         lineHeight = 16.sp
@@ -137,12 +222,13 @@ fun ProductiveWhitelistDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
-                        .heightIn(max = 360.dp),
+                        .heightIn(max = 340.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(items, key = { it.id }) { item ->
                         ProductiveAppRow(
                             item = item,
+                            isWorkModeActive = isWorkMode,
                             onToggle = { enabled ->
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 viewModel.toggleProductiveApp(item.id, enabled)
@@ -180,6 +266,7 @@ fun ProductiveWhitelistDialog(
 @Composable
 private fun ProductiveAppRow(
     item: ProductiveAppItem,
+    isWorkModeActive: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
     Card(
@@ -228,13 +315,41 @@ private fun ProductiveAppRow(
                                     softWrap = false
                                 )
                             }
+                        } else if (item.isWorkModeOfficeApp) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(CategoryWork.copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "OFFICE WORK",
+                                    color = CategoryWork,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     }
-                    Text(
-                        text = item.category,
-                        color = FocusSecondary,
-                        fontSize = 10.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = item.category,
+                            color = FocusSecondary,
+                            fontSize = 10.sp
+                        )
+                        if (isWorkModeActive) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (item.isWorkModeOfficeApp || item.isEssential) "• 🟢 Allowed in Work Mode" else "• 🔒 Restricted",
+                                color = if (item.isWorkModeOfficeApp || item.isEssential) FocusAccent else FocusSecondary.copy(alpha = 0.6f),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
 

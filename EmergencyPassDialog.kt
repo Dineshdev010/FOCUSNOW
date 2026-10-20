@@ -246,7 +246,55 @@ fun EmergencyPassDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Option: Solve Mind Puzzle for 5-Min Time Pass
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FocusPanelLight),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.2.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.openJigsawPuzzle("Solve puzzle to unlock 5 minutes for $appName") {
+                                viewModel.grantEmergencyPass(appName, 300)
+                                onPassGranted()
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(FocusAccent.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🧩", fontSize = 20.sp)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Solve Mind Puzzle (+5 Min Pass)",
+                                color = FocusWhite,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Solve Jigsaw, Sudoku or Logic tile to unlock",
+                                color = FocusAccent,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Text("Play →", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Alternative: 10-Second Mindful Wait
                 if (!isCountingDown) {
