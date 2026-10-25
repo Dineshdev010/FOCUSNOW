@@ -87,7 +87,8 @@ data class JigsawPieceSpec(
 @Composable
 fun RealPhotoJigsawPuzzleView(
     viewModel: FocusFlowViewModel,
-    onSolved: () -> Unit
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     var selectedTheme by remember { mutableStateOf(PhotoJigsawTheme.SUNSET_FREEDOM) }
@@ -163,12 +164,14 @@ fun RealPhotoJigsawPuzzleView(
     var selectedTrayPieceId by remember { mutableStateOf<Int?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isVictory by remember { mutableStateOf(false) }
+    var showPeekPreview by remember { mutableStateOf(false) }
 
     fun checkVictory() {
         if (placedStatus.all { it }) {
             isVictory = true
             isTimerRunning = false
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onSolved()
         }
     }
 
@@ -182,6 +185,8 @@ fun RealPhotoJigsawPuzzleView(
         isVictory = false
         elapsedSeconds = 0
         isTimerRunning = true
+        showPeekPreview = false
+        onReset()
     }
 
     val placedCount = placedStatus.count { it }
@@ -237,6 +242,13 @@ fun RealPhotoJigsawPuzzleView(
                                 if (numRows != r || numCols != c) {
                                     numRows = r
                                     numCols = c
+                                    selectedTrayPieceId = null
+                                    errorMessage = null
+                                    isVictory = false
+                                    elapsedSeconds = 0
+                                    isTimerRunning = true
+                                    showPeekPreview = false
+                                    onReset()
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
                             }
@@ -255,32 +267,53 @@ fun RealPhotoJigsawPuzzleView(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Scenic Theme Selector
+        // Scenic Theme Selector & Ghost Peek Guide
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PhotoJigsawTheme.values().forEach { theme ->
-                val isSel = selectedTheme == theme
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSel) FocusAccentSoft else FocusPanelLight)
-                        .border(1.dp, if (isSel) FocusAccent else Color.Transparent, RoundedCornerShape(10.dp))
-                        .clickable {
-                            selectedTheme = theme
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        }
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = "${theme.emoji} ${theme.title}",
-                        fontSize = 10.sp,
-                        color = if (isSel) FocusAccent else FocusWhite,
-                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                PhotoJigsawTheme.values().forEach { theme ->
+                    val isSel = selectedTheme == theme
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSel) FocusAccentSoft else FocusPanelLight)
+                            .border(1.dp, if (isSel) FocusAccent else Color.Transparent, RoundedCornerShape(8.dp))
+                            .clickable {
+                                selectedTheme = theme
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            .padding(horizontal = 7.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "${theme.emoji} ${theme.title}",
+                            fontSize = 9.5.sp,
+                            color = if (isSel) FocusAccent else FocusWhite,
+                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (showPeekPreview) FocusAccent else FocusPanelLight)
+                    .border(1.dp, if (showPeekPreview) FocusAccent else FocusPanelBorder, RoundedCornerShape(8.dp))
+                    .clickable {
+                        showPeekPreview = !showPeekPreview
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (showPeekPreview) "👁️ Hide Guide" else "👁️ Guide",
+                    fontSize = 9.5.sp,
+                    color = if (showPeekPreview) FocusBackground else FocusAccent,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -338,19 +371,30 @@ fun RealPhotoJigsawPuzzleView(
                         } else {
                             // EMPTY CUTOUT SLOT with physical interlocking tabs & blanks outline
                             clipPath(path) {
-                                drawRect(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(Color(0xFF1E2533), Color(0xFF0D1017)),
-                                        center = Offset(startX + pieceW / 2, startY + pieceH / 2),
-                                        radius = pieceW * 0.85f
+                                if (showPeekPreview) {
+                                    // Ghost guide artwork to help position pieces
+                                    drawContext.canvas.save()
+                                    drawScenicArtwork(
+                                        theme = selectedTheme,
+                                        boardSize = Size(boardWidth, boardHeight)
                                     )
-                                )
+                                    drawRect(Color.Black.copy(alpha = 0.65f))
+                                    drawContext.canvas.restore()
+                                } else {
+                                    drawRect(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(Color(0xFF1E2533), Color(0xFF0D1017)),
+                                            center = Offset(startX + pieceW / 2, startY + pieceH / 2),
+                                            radius = pieceW * 0.85f
+                                        )
+                                    )
+                                }
                             }
 
                             // Distinct jigsaw slot guideline
                             drawPath(
                                 path = path,
-                                color = Color.White.copy(alpha = 0.22f),
+                                color = if (showPeekPreview) FocusAccent.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.22f),
                                 style = Stroke(
                                     width = 1.2f,
                                     cap = StrokeCap.Round,
@@ -456,7 +500,7 @@ fun RealPhotoJigsawPuzzleView(
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF141923))
                                 .border(0.5.dp, FocusPanelBorder, CircleShape)
@@ -468,12 +512,12 @@ fun RealPhotoJigsawPuzzleView(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("◀", fontSize = 8.sp, color = FocusWhite)
+                            Text("◀", fontSize = 11.sp, color = FocusWhite)
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         Box(
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF141923))
                                 .border(0.5.dp, FocusPanelBorder, CircleShape)
@@ -486,7 +530,7 @@ fun RealPhotoJigsawPuzzleView(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("▶", fontSize = 8.sp, color = FocusWhite)
+                            Text("▶", fontSize = 11.sp, color = FocusWhite)
                         }
                     }
 
@@ -568,19 +612,23 @@ fun RealPhotoJigsawPuzzleView(
                                     Canvas(modifier = Modifier.fillMaxSize()) {
                                         val cW = size.width
                                         val cH = size.height
+                                        val marginX = cW * 0.18f
+                                        val marginY = cH * 0.18f
+                                        val pieceW = cW - 2 * marginX
+                                        val pieceH = cH - 2 * marginY
                                         val miniPath = buildJigsawPath(
                                             spec = spec,
-                                            x = 0f,
-                                            y = 0f,
-                                            w = cW,
-                                            h = cH
+                                            x = marginX,
+                                            y = marginY,
+                                            w = pieceW,
+                                            h = pieceH
                                         )
 
                                         clipPath(miniPath) {
-                                            val fullW = cW * numCols
-                                            val fullH = cH * numRows
-                                            val offsetX = -spec.col * cW
-                                            val offsetY = -spec.row * cH
+                                            val fullW = pieceW * numCols
+                                            val fullH = pieceH * numRows
+                                            val offsetX = marginX - spec.col * pieceW
+                                            val offsetY = marginY - spec.row * pieceH
 
                                             drawContext.canvas.save()
                                             drawContext.canvas.translate(offsetX, offsetY)
@@ -605,48 +653,7 @@ fun RealPhotoJigsawPuzzleView(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // VICTORY CELEBRATION (ONLY UNLOCKED WHEN 100% SOLVED BY USER!)
-        AnimatedVisibility(visible = isVictory) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = FocusAccentSoft),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.5.dp, FocusAccent, RoundedCornerShape(16.dp))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("🏆 MASTER JIGSAW ASSEMBLED!", color = FocusAccent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "100% Genuine Focus in $formattedTime! +30 Coins 🪙",
-                        color = FocusWhite,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Button(
-                        onClick = {
-                            viewModel.onJigsawPuzzleSolved()
-                            onSolved()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            if (viewModel.puzzleSolvedCallback != null) "Unlock 5-Min Time Pass ⏱️" else "Claim 5-Min Break ⏱️",
-                            color = FocusBackground,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(10.dp))
 
         if (!isVictory) {
             Row(

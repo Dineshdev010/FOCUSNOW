@@ -56,7 +56,7 @@ fun StrictLockScreen(viewModel: FocusFlowViewModel) {
     val remaining = viewModel.timerRemainingSeconds
     val minutes = remaining / 60
     val seconds = remaining % 60
-    val timeFormatted = String.format("%02d:%02d", minutes, seconds)
+    val timeFormatted = String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
 
     BackHandler {
         haptic.performHapticFeedback(HapticFeedbackType.Reject)

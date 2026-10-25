@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -102,6 +104,8 @@ fun AppBlockerRulesDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.96f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -667,6 +671,9 @@ fun AppBlockerRulesDialog(
                                             RoundedCornerShape(14.dp)
                                         )
                                 ) {
+                                    val isEdu = viewModel.repository.isEducationalApp(appItem.packageName)
+                                    val isOfficeOrWorkspace = viewModel.isOfficeOrWorkspaceApp(appItem.packageName)
+                                    val isImmune = isEdu || isOfficeOrWorkspace
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -678,7 +685,11 @@ fun AppBlockerRulesDialog(
                                             modifier = Modifier
                                                 .size(38.dp)
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(if (appItem.isBlocked) PriorityHigh.copy(alpha = 0.15f) else FocusPanelLight),
+                                                .background(
+                                                    if (isImmune) FocusAccent.copy(alpha = 0.2f)
+                                                    else if (appItem.isBlocked) PriorityHigh.copy(alpha = 0.15f)
+                                                    else FocusPanelLight
+                                                ),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(appItem.iconEmoji, fontSize = 20.sp)
@@ -702,14 +713,14 @@ fun AppBlockerRulesDialog(
                                                 Box(
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(6.dp))
-                                                        .background(FocusPanelLight)
+                                                        .background(if (isImmune) FocusAccent.copy(alpha = 0.2f) else FocusPanelLight)
                                                         .padding(horizontal = 5.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
-                                                        text = appItem.category,
-                                                        color = FocusSecondary,
+                                                        text = if (isOfficeOrWorkspace) "OFFICE & WORKSPACE 💼" else if (isEdu) "EDUCATION 🎓" else appItem.category,
+                                                        color = if (isImmune) FocusAccent else FocusSecondary,
                                                         fontSize = 9.sp,
-                                                        fontWeight = FontWeight.SemiBold,
+                                                        fontWeight = FontWeight.Bold,
                                                         maxLines = 1,
                                                         softWrap = false
                                                     )
@@ -723,13 +734,16 @@ fun AppBlockerRulesDialog(
                                                     modifier = Modifier
                                                         .size(6.dp)
                                                         .clip(CircleShape)
-                                                        .background(if (appItem.isBlocked) PriorityHigh else FocusAccent)
+                                                        .background(if (isImmune) FocusAccent else if (appItem.isBlocked) PriorityHigh else FocusAccent)
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    text = if (appItem.isBlocked) "BLOCKED (Locked by Shield)" else "ALLOWED (Active)",
-                                                    color = if (appItem.isBlocked) PriorityHigh else FocusAccent,
-                                                    fontSize = 11.sp,
+                                                    text = if (isOfficeOrWorkspace) "PROTECTED (Office & Workspace • Always Unblocked)"
+                                                        else if (isEdu) "PROTECTED (Always Allowed • Never Blocked)"
+                                                        else if (appItem.isBlocked) "BLOCKED (Locked by Shield)"
+                                                        else "ALLOWED (Active)",
+                                                    color = if (isImmune) FocusAccent else if (appItem.isBlocked) PriorityHigh else FocusAccent,
+                                                    fontSize = 10.sp,
                                                     fontWeight = FontWeight.SemiBold,
                                                     maxLines = 1,
                                                     softWrap = false
@@ -739,16 +753,19 @@ fun AppBlockerRulesDialog(
 
                                         // Toggle Switch
                                         Switch(
-                                            checked = appItem.isBlocked,
-                                            onCheckedChange = { isBlockedNow ->
+                                            checked = if (isImmune) false else appItem.isBlocked,
+                                            onCheckedChange = if (isImmune) null else { isBlockedNow ->
                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                 viewModel.toggleAppBlockedState(appItem.packageName, isBlockedNow)
                                             },
+                                            enabled = !isImmune,
                                             colors = SwitchDefaults.colors(
                                                 checkedThumbColor = FocusBackground,
                                                 checkedTrackColor = PriorityHigh,
-                                                uncheckedThumbColor = FocusBackground,
-                                                uncheckedTrackColor = FocusBorder
+                                                uncheckedThumbColor = if (isImmune) FocusAccent else FocusBackground,
+                                                uncheckedTrackColor = if (isImmune) FocusAccent.copy(alpha = 0.3f) else FocusBorder,
+                                                disabledUncheckedThumbColor = FocusAccent,
+                                                disabledUncheckedTrackColor = FocusAccent.copy(alpha = 0.25f)
                                             )
                                         )
                                     }

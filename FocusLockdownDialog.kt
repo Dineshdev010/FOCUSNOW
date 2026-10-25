@@ -15,11 +15,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -76,7 +79,7 @@ fun FocusLockdownDialog(
     val remainingSecs = viewModel.timerRemainingSeconds
     val mins = remainingSecs / 60
     val secs = remainingSecs % 60
-    val timeFormatted = String.format("%02d:%02d", mins, secs)
+    val timeFormatted = String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
 
     val isWorkMode = viewModel.isWorkModeInterception || viewModel.isWorkModeEnabled || viewModel.repository.isWorkModeActive()
 
@@ -84,6 +87,8 @@ fun FocusLockdownDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.96f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {
@@ -92,11 +97,12 @@ fun FocusLockdownDialog(
             shape = RoundedCornerShape(26.dp),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.90f)
                 .border(1.5.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(26.dp))
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -138,9 +144,9 @@ fun FocusLockdownDialog(
 
                 Text(
                     text = if (isWorkMode)
-                        "Work Mode is active. Only office tools (Teams, Outlook, WhatsApp) & voice calls work. Non-work apps remain locked."
+                        "Work Mode is active. Office tools (Teams, Outlook, WhatsApp), educational apps & voice calls remain open."
                     else
-                        "Focus session in progress. Only phone calls and productive apps are accessible.",
+                        "Focus session in progress. Phone calls, educational apps (Duolingo, etc.), and productive whitelist tools remain accessible.",
                     color = FocusSecondary,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,

@@ -69,7 +69,13 @@ object DeviceUsageTracker {
 
         // Use queryAndAggregateUsageStats to combine multiple sessions into today's accurate totals
         val statsMap = try {
-            usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
+            val aggregated = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
+            if (!aggregated.isNullOrEmpty()) {
+                aggregated
+            } else {
+                val list = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+                list?.associateBy { it.packageName } ?: emptyMap()
+            }
         } catch (e: Exception) {
             emptyMap()
         }
@@ -132,6 +138,54 @@ object DeviceUsageTracker {
     fun getTotalTrackedScreenTimeSeconds(context: Context): Long {
         val usageList = getRealDailyAppUsage(context)
         return usageList.sumOf { it.secondsToday }
+    }
+
+    fun getWeeklyHistoricalUsageHours(context: Context): List<Pair<String, Float>> {
+        if (!PermissionHelper.hasUsageStatsPermission(context)) {
+            return emptyList()
+        }
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return emptyList()
+
+        val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val result = mutableListOf<Pair<String, Float>>()
+
+        val cal = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val now = System.currentTimeMillis()
+
+        for (i in 0..6) {
+            val dayStart = cal.timeInMillis
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+            val dayEnd = cal.timeInMillis
+
+            if (dayStart > now) {
+                result.add(labels[i] to 0.0f)
+            } else {
+                val effectiveEnd = dayEnd.coerceAtMost(now)
+                val dayStats = try {
+                    val aggregated = usageStatsManager.queryAndAggregateUsageStats(dayStart, effectiveEnd)
+                    if (!aggregated.isNullOrEmpty()) aggregated
+                    else usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dayStart, effectiveEnd)?.associateBy { it.packageName } ?: emptyMap()
+                } catch (_: Exception) {
+                    emptyMap()
+                }
+
+                val totalMillis = dayStats.filterKeys { !ignoredSystemPackages.contains(it) }
+                    .values.sumOf { it.totalTimeInForeground }
+                val hours = (totalMillis / 1000f / 3600f)
+                val formatted = String.format(java.util.Locale.US, "%.1f", hours).toFloat()
+                result.add(labels[i] to formatted)
+            }
+        }
+        return result
     }
 
     private fun deriveEmoji(packageName: String, label: String): String {

@@ -1,7 +1,14 @@
 package com.focusflow.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import com.focusflow.app.widget.FocusFlowWidgetProvider
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +42,8 @@ import com.focusflow.app.model.BlockedApp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -78,7 +88,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
         else -> "Good evening"
     }
 
-    val savedHours = String.format("%.1f", viewModel.savedScreenTimeMinutes / 60f)
+    val savedHours = String.format(java.util.Locale.US, "%.1f", viewModel.savedScreenTimeMinutes / 60f)
 
     Column(
         modifier = Modifier
@@ -86,9 +96,9 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Header with Brand and Coin Balance
+        // Header with Brand and Top Actions
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -100,39 +110,13 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Streak Header Badge -> Opens Progress / Streak Details
+                // Streak & Coin Capsule -> Opens Rewards Store
                 Box(
                     modifier = Modifier
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(17.dp))
                         .background(FocusPanel)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.selectedTab = "Progress"
-                        }
-                        .padding(horizontal = 9.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🔥", fontSize = 13.sp)
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = "${viewModel.streakDays}d",
-                            color = FocusAccent,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // Coin Balance Badge -> Opens Rewards Store
-                Box(
-                    modifier = Modifier
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(FocusPanel)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(17.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             viewModel.showRewardsStoreModal = true
@@ -141,7 +125,18 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🪙", fontSize = 13.sp)
+                        Text("🔥", fontSize = 11.sp)
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "${viewModel.streakDays}d",
+                            color = FocusAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("•", color = FocusBorder, fontSize = 10.sp)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("🪙", fontSize = 11.sp)
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = "${viewModel.focusCoins}",
@@ -152,52 +147,52 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     }
                 }
 
-                // Achievements Badge -> Opens Achievements & Challenges Screen
+                // Search Action
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(34.dp)
+                        .clip(CircleShape)
                         .background(FocusPanel)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.showAchievementsScreen = true
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🏆", fontSize = 14.sp)
-                }
-
-                // Universal Search Badge -> Opens Global Search Modal
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(FocusPanel)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .border(1.dp, FocusBorder, CircleShape)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             viewModel.showGlobalSearchModal = true
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🔍", fontSize = 14.sp)
+                    Text("🔍", fontSize = 13.sp)
                 }
 
-                // Settings Badge -> Opens Full Settings Screen
+                // Profile Avatar Action
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(FocusPanelLight)
+                        .border(1.2.dp, FocusAccent.copy(alpha = 0.6f), CircleShape)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showProfileScreen = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(viewModel.userAvatar, fontSize = 14.sp)
+                }
+
+                // Settings Action
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
                         .background(FocusPanel)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .border(1.dp, FocusBorder, CircleShape)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             viewModel.showSettingsScreen = true
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("⚙️", fontSize = 14.sp)
+                    Text("⚙️", fontSize = 13.sp)
                 }
             }
         }
@@ -218,35 +213,76 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
             fontWeight = FontWeight.Bold
         )
 
-        // Goal & Shield Pills
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Goal, Shield, & Mind Puzzle Pills (Horizontally scrollable for all screen widths)
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(FocusPanelLight)
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         viewModel.showGoalModal = true
                     }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text("🎯 ${viewModel.userGoal}", color = FocusWhite, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
 
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(FocusAccentSoft)
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         viewModel.showReelsBlockerSheet = true
                     }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
-                    "\uD83D\uDEE1\uFE0F Reels & Shorts Shield",
+                    "🛡️ Reels & Shorts Shield",
                     color = FocusAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(FocusPanelLight)
+                    .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.openJigsawPuzzle("Mental Reset: Sharpen focus & earn 20 coins")
+                    }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    "🧩 Mind Puzzles",
+                    color = FocusAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(FocusPanelLight)
+                    .border(1.dp, FocusBorder, RoundedCornerShape(10.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.showAchievementsScreen = true
+                    }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    "🏆 Achievements",
+                    color = FocusWhite,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -287,6 +323,12 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                             Text("Regained Today:", color = FocusSecondary, fontSize = 11.sp)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("$savedHours hrs saved", color = FocusAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            if (viewModel.hasUsageAccessPermission && viewModel.totalDeviceScreenTimeMinutes > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("•", color = FocusSecondary, fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("${viewModel.totalDeviceScreenTimeString} screen", color = FocusWhite, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
@@ -741,125 +783,142 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 1-Tap Pin Shortcut to Launcher Banner
+        // 1-Tap Pin Shortcut to Launcher Banner (Vanishes from app once added)
         val context = androidx.compose.ui.platform.LocalContext.current
-        Card(
-            colors = CardDefaults.cardColors(containerColor = FocusPanel),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, FocusAccent.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
-                .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    viewModel.pinFocusShortcut(context)
-                    android.widget.Toast.makeText(context, "📌 Added ⚡ Quick Focus shortcut to Home Screen!", android.widget.Toast.LENGTH_SHORT).show()
-                }
+        AnimatedVisibility(
+            visible = !viewModel.isShortcutAdded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f).padding(end = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Column {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FocusPanel),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, FocusAccent.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.pinFocusShortcut(context)
+                            android.widget.Toast.makeText(context, "📌 Added ⚡ Quick Focus shortcut to Home Screen!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                 ) {
-                    Text("📲", fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Add Shortcut to Home Screen",
-                            color = FocusWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "Instant 1-tap 25m Focus from your desktop",
-                            color = FocusSecondary,
-                            fontSize = 10.sp,
-                            maxLines = 1
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📲", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Add Shortcut to Home Screen",
+                                    color = FocusWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "Instant 1-tap 25m Focus from your desktop",
+                                    color = FocusSecondary,
+                                    fontSize = 10.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .background(FocusAccent, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = "Add +",
+                                color = FocusBackground,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                softWrap = false,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .background(FocusAccent, RoundedCornerShape(10.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = "Add +",
-                        color = FocusBackground,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        softWrap = false,
-                        maxLines = 1
-                    )
-                }
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 1-Tap Pin Widget to Home Screen
-        Card(
-            colors = CardDefaults.cardColors(containerColor = FocusPanel),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    val pinned = viewModel.pinFocusWidget(context)
-                    val msg = if (pinned) "📌 FocusNow Widget pinned to your Home Screen!" else "📌 Widget requested! Add from your launcher's widget menu if prompt doesn't appear."
-                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                }
+        // 1-Tap Pin Widget to Home Screen (Vanishes from app once added)
+        val isWidgetInstalled = FocusFlowWidgetProvider.isWidgetActiveOnHomeScreen(context)
+        AnimatedVisibility(
+            visible = !viewModel.isWidgetPinned && !isWidgetInstalled,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f).padding(end = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Column {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FocusPanel),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            val pinned = viewModel.pinFocusWidget(context)
+                            val msg = if (pinned) "📌 FocusNow Widget pinned to your Home Screen!" else "📌 Widget requested! Add from your launcher's widget menu if prompt doesn't appear."
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                        }
                 ) {
-                    Text("⚡", fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Live Home Screen Widget",
-                            color = FocusWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "Track streak, stats & 1-tap focus",
-                            color = FocusSecondary,
-                            fontSize = 10.sp,
-                            maxLines = 1
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("⚡", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Live Home Screen Widget",
+                                    color = FocusWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "Track streak, stats & 1-tap focus",
+                                    color = FocusSecondary,
+                                    fontSize = 10.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .background(FocusAccent, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Pin +",
+                                color = FocusBackground,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                softWrap = false,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .background(FocusAccent, RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "Pin +",
-                        color = FocusBackground,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        softWrap = false,
-                        maxLines = 1
-                    )
-                }
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
 
@@ -918,7 +977,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     }
                 }
 
-                // Add Schedule Button
+                // Manage Schedules Button
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
@@ -926,14 +985,34 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                         .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.showAddScheduleModal = true
+                            viewModel.showAppLimitsAndSchedulesModal = true
                         }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "+ Add Block",
+                        text = "Windows ⏰",
                         color = FocusAccent,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Add Schedule Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FocusAccent.copy(alpha = 0.16f))
+                        .border(1.dp, FocusAccent, RoundedCornerShape(12.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showAddScheduleModal = true
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "+ Add",
+                        color = FocusAccent,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -986,7 +1065,14 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
                     Spacer(modifier = Modifier.width(14.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.openScheduleForEditing(schedule)
+                            }
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = schedule.name,
@@ -1018,7 +1104,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${schedule.formattedTimeRange()} • ${schedule.daysSummary}",
+                            text = "${schedule.formattedTimeRange()} • ${if (schedule.targetAppPackages.isNotEmpty()) "${schedule.targetAppPackages.size} apps blocked" else schedule.daysSummary}${if (schedule.isAlarmEnabled) " • ⏰ ${schedule.alarmSound}" else ""}",
                             color = FocusSecondary,
                             fontSize = 11.sp
                         )
@@ -1067,31 +1153,120 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(FocusPanelLight)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.showAppBlockerRulesModal = true
-                        }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "Manage All Apps 🛡️",
-                        color = FocusAccent,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(FocusAccent.copy(alpha = 0.16f))
+                            .border(1.dp, FocusAccent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.showAppLimitsAndSchedulesModal = true
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Budgets ⏱️",
+                            color = FocusAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(FocusPanelLight)
+                            .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.showAppBlockerRulesModal = true
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Rules 🛡️",
+                            color = FocusSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Master Shield & Always Allowed Quick Control Card
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (viewModel.isMasterShieldEnabled) FocusAccent.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color(0xFF261907)
+                ),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.dp,
+                        if (viewModel.isMasterShieldEnabled) FocusAccent.copy(alpha = 0.45f) else androidx.compose.ui.graphics.Color(0xFFF59E0B).copy(alpha = 0.6f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.showAlwaysAllowedModal = true
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (viewModel.isMasterShieldEnabled) "🛡️" else "⏸️", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (viewModel.isMasterShieldEnabled) "Shield Active" else "Shield Turned OFF",
+                                    color = if (viewModel.isMasterShieldEnabled) FocusWhite else androidx.compose.ui.graphics.Color(0xFFF59E0B),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (viewModel.isMasterShieldEnabled) "• Guarding" else "• Paused",
+                                    color = if (viewModel.isMasterShieldEnabled) FocusAccent else FocusSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Text(
+                                text = "Tap to turn off shield or select apps allowed all the time",
+                                color = FocusSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(FocusPanelLight)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("Configure ⚙️", color = FocusAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             viewModel.blockedApps.forEach { app ->
-                val usedRatio = (app.usedMinutesToday.toFloat() / app.dailyLimitMinutes.toFloat()).coerceIn(0f, 1f)
+                val usedRatio = (app.usedMinutesToday.toFloat() / app.dailyLimitMinutes.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
                 val isLimitExceeded = app.usedMinutesToday >= app.dailyLimitMinutes
+                val remainingMinutes = (app.dailyLimitMinutes - app.usedMinutesToday).coerceAtLeast(0)
 
                 Card(
                     colors = CardDefaults.cardColors(containerColor = FocusPanel),
@@ -1099,29 +1274,34 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.editingAppLimitItem = app
+                        }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Circular Radial Usage Ring
                             Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(FocusPanelLight),
+                                modifier = Modifier.size(46.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                Canvas(modifier = Modifier.size(42.dp)) {
+                                    val stroke = 3.5.dp.toPx()
+                                    drawCircle(color = FocusBorder, style = Stroke(stroke))
+                                    drawArc(
+                                        color = if (isLimitExceeded) PriorityHigh else if (usedRatio >= 0.75f) PriorityMedium else FocusAccent,
+                                        startAngle = -90f,
+                                        sweepAngle = usedRatio * 360f,
+                                        useCenter = false,
+                                        style = Stroke(stroke, cap = StrokeCap.Round)
+                                    )
+                                }
                                 Text(
-                                    text = when {
-                                        app.name.contains("Instagram", ignoreCase = true) -> "📸"
-                                        app.name.contains("YouTube", ignoreCase = true) -> "▶️"
-                                        app.name.contains("Snapchat", ignoreCase = true) -> "👻"
-                                        app.name.contains("Chrome", ignoreCase = true) -> "🌐"
-                                        app.name.contains("TikTok", ignoreCase = true) -> "🎵"
-                                        app.name.contains("X", ignoreCase = true) || app.name.contains("Twitter", ignoreCase = true) -> "🐦"
-                                        else -> "📱"
-                                    },
+                                    text = app.iconEmoji,
                                     fontSize = 18.sp
                                 )
                             }
@@ -1129,18 +1309,31 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                             Spacer(modifier = Modifier.width(12.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = app.name,
-                                    color = FocusWhite,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = app.name,
+                                        color = FocusWhite,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (app.isHardLock) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(PriorityHigh.copy(alpha = 0.2f))
+                                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("STRICT", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = PriorityHigh)
+                                        }
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = if (isLimitExceeded) {
                                         "Limit reached (${app.usedMinutesToday}m / ${app.dailyLimitMinutes}m)"
                                     } else {
-                                        "${app.usedMinutesToday}m used today • ${app.dailyLimitMinutes - app.usedMinutesToday}m remaining"
+                                        "${app.usedMinutesToday}m used • ${remainingMinutes}m remaining"
                                     },
                                     color = if (isLimitExceeded) PriorityHigh else FocusSecondary,
                                     fontSize = 11.sp,
@@ -1157,14 +1350,14 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                                     },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = FocusBackground,
-                                        checkedTrackColor = PriorityHigh,
+                                        checkedTrackColor = if (isLimitExceeded) PriorityHigh else FocusAccent,
                                         uncheckedThumbColor = FocusBackground,
                                         uncheckedTrackColor = FocusBorder
                                     )
                                 )
                                 Text(
-                                    text = if (app.isBlocked) "Blocked 🔴" else "Allowed 🟢",
-                                    color = if (app.isBlocked) PriorityHigh else FocusAccent,
+                                    text = if (app.isBlocked) "Capped ⏱️" else "Allowed 🟢",
+                                    color = if (app.isBlocked) FocusAccent else FocusSecondary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1192,7 +1385,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Limit selector chips: 15m, 30m, 45m, 60m
+                        // Limit selector chips with + Custom action
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1229,6 +1422,26 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
                                 }
+                            }
+
+                            // Custom Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(FocusPanelLight)
+                                    .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.editingAppLimitItem = app
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Custom ⚙️",
+                                    color = FocusAccent,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -1411,6 +1624,18 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(135.dp))
+        Spacer(modifier = Modifier.height(44.dp))
+    }
+
+    val editingApp = viewModel.editingAppLimitItem
+    if (editingApp != null) {
+        CustomAppLimitDialog(
+            app = editingApp,
+            onSave = { newLimit, maxOpens, isHardLock ->
+                viewModel.updateAppDailyLimit(editingApp.packageName, newLimit, maxOpens, isHardLock)
+                viewModel.editingAppLimitItem = null
+            },
+            onDismiss = { viewModel.editingAppLimitItem = null }
+        )
     }
 }

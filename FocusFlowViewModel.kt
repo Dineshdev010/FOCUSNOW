@@ -15,6 +15,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.focusflow.app.data.FocusFlowRepository
 import com.focusflow.app.model.*
+import com.focusflow.app.util.FocusAlarmManager
 import com.focusflow.app.util.FocusSoundManager
 import com.focusflow.app.util.PermissionHelper
 import com.focusflow.app.widget.FocusFlowWidgetProvider
@@ -48,6 +49,21 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         private set
     var userGoal by mutableStateOf("Master Focus & Eliminate Distractions")
         private set
+    var userName by mutableStateOf("Dinesh")
+    var userBio by mutableStateOf("Conquering distractions & mastering flow")
+    var userAvatar by mutableStateOf("⚡")
+    var userJoinedDate by mutableStateOf("Joined Oct 2026")
+    var showProfileScreen by mutableStateOf(false)
+
+    val userLevel: Int
+        get() = repository.getUserLevel()
+
+    val userLevelTitle: String
+        get() = repository.getLevelTitle(userLevel)
+
+    val userLevelProgress: Float
+        get() = getUserLevel().progressPercent
+
     var blockedApps by mutableStateOf<List<BlockedApp>>(emptyList())
         private set
     var blockedWebsites by mutableStateOf<List<String>>(emptyList())
@@ -71,6 +87,60 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     var bonsaiStatus by mutableStateOf(repository.getBonsaiStatus())
         private set
     var showBonsaiToastMessage by mutableStateOf<String?>(null)
+
+    // Home Screen Shortcut & Widget Banner States (Vanishes once added)
+    var isShortcutAdded by mutableStateOf(repository.isShortcutAdded())
+    var isWidgetPinned by mutableStateOf(repository.isWidgetPinned())
+
+    // Timer Completion Audio & Vibration Alarm
+    var timerAlarmSound by mutableStateOf(repository.getTimerAlarmSound())
+    var isTimerAlarmEnabled by mutableStateOf(repository.isTimerAlarmEnabled())
+    var isTimerVibrateEnabled by mutableStateOf(repository.isTimerVibrateEnabled())
+    var isAlarmRinging by mutableStateOf(false)
+    var alarmRingingTitle by mutableStateOf("⏰ Focus Session Complete!")
+    var alarmRingingSubtitle by mutableStateOf("Great job! Your focus time is done.")
+    var alarmRingingSound by mutableStateOf("Zen Gong")
+
+    fun dismissRingingAlarm() {
+        isAlarmRinging = false
+        try {
+            val context = getApplication<Application>().applicationContext
+            FocusAlarmManager.stopAlarm(context)
+            val notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notifManager?.cancel(9901)
+            notifManager?.cancel(9904)
+        } catch (_: Exception) {}
+    }
+
+    fun snoozeRingingAlarm(extraMinutes: Int = 5) {
+        dismissRingingAlarm()
+        adjustTimerMinutes(extraMinutes)
+        startTimer()
+    }
+
+    fun updateTimerAlarmSettings(sound: String, enabled: Boolean, vibrate: Boolean) {
+        timerAlarmSound = sound
+        isTimerAlarmEnabled = enabled
+        isTimerVibrateEnabled = vibrate
+        repository.setTimerAlarmSound(sound)
+        repository.setTimerAlarmEnabled(enabled)
+        repository.setTimerVibrateEnabled(vibrate)
+        if (isTimerRunning) {
+            val context = getApplication<Application>().applicationContext
+            if (enabled) {
+                val modeTitle = modes.getOrNull(currentModeIndex)?.title ?: "Focus"
+                FocusAlarmManager.scheduleTimerAlarm(
+                    context = context,
+                    durationSeconds = timerRemainingSeconds,
+                    modeTitle = modeTitle,
+                    soundName = sound,
+                    vibrate = vibrate
+                )
+            } else {
+                FocusAlarmManager.cancelTimerAlarm(context)
+            }
+        }
+    }
 
     // Modals
     var showMindfulPauseModal by mutableStateOf(false)
@@ -112,8 +182,16 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     var isWorkModeInterception by mutableStateOf(false)
     var isWorkModeEnabled by mutableStateOf(false)
     var showProductiveWhitelistModal by mutableStateOf(false)
+    var isMasterShieldEnabled by mutableStateOf(true)
+    var showAlwaysAllowedModal by mutableStateOf(false)
+    var alwaysAllowedPackages by mutableStateOf<Set<String>>(emptySet())
     var productiveAppItems by mutableStateOf<List<ProductiveAppItem>>(emptyList())
         private set
+    var categoryBudgets by mutableStateOf<List<CategoryBudget>>(emptyList())
+        private set
+    var showAppLimitsAndSchedulesModal by mutableStateOf(false)
+    var editingAppLimitItem by mutableStateOf<BlockedApp?>(null)
+    var editingScheduleItem by mutableStateOf<FocusSchedule?>(null)
 
     // Focus Notification Shield & Digest States
     var showFocusDigestModal by mutableStateOf(false)
@@ -129,6 +207,17 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         private set
     var hasUsageAccessPermission by mutableStateOf(false)
         private set
+
+    val totalDeviceScreenTimeMinutes: Long
+        get() = deviceUsageStats.sumOf { it.minutesToday }
+
+    val totalDeviceScreenTimeString: String
+        get() {
+            val totalMins = totalDeviceScreenTimeMinutes
+            val hours = totalMins / 60
+            val mins = totalMins % 60
+            return if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
+        }
 
     // Rewards Store & Themes
     var storeItems by mutableStateOf<List<StoreItem>>(emptyList())
@@ -290,6 +379,22 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                     timerRemainingSeconds = clamped * 60
                 }
             }
+        } else {
+            val newSeconds = (timerRemainingSeconds + deltaMinutes * 60).coerceAtLeast(10)
+            timerRemainingSeconds = newSeconds
+            if (isTimerAlarmEnabled) {
+                try {
+                    val context = getApplication<Application>().applicationContext
+                    val modeTitle = modes.getOrNull(currentModeIndex)?.title ?: "Focus"
+                    FocusAlarmManager.scheduleTimerAlarm(
+                        context = context,
+                        durationSeconds = timerRemainingSeconds,
+                        modeTitle = modeTitle,
+                        soundName = timerAlarmSound,
+                        vibrate = isTimerVibrateEnabled
+                    )
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -337,7 +442,13 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         activeThemeId = equippedTheme
         com.focusflow.app.ui.theme.applyThemeById(equippedTheme)
         selectedJigsawTheme = repository.getSelectedJigsawTheme()
+        userName = repository.getUserName()
+        userBio = repository.getUserBio()
+        userAvatar = repository.getUserAvatar()
+        userJoinedDate = repository.getUserJoinedDate()
         productiveAppItems = repository.getProductiveAppItems()
+        isMasterShieldEnabled = repository.isMasterShieldEnabled()
+        alwaysAllowedPackages = repository.getAlwaysAllowedPackages()
         isWorkModeEnabled = repository.isWorkModeEnabled()
         isNotificationShieldEnabled = repository.isNotificationShieldEnabled()
         checkAndRefreshDeviceUsage()
@@ -354,6 +465,7 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         habitResistanceStats = repository.getHabitResistanceStats()
         floatingPillConfig = repository.getFloatingPillConfig()
         allAppShieldRules = repository.getAllAppShieldRules()
+        categoryBudgets = repository.getCategoryBudgets()
         customFocusMinutes = repository.getCustomFocusMinutes()
         customShortBreakMinutes = repository.getCustomBreakMinutes()
         customLongBreakMinutes = repository.getCustomLongBreakMinutes()
@@ -364,6 +476,13 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         checkNotificationListenerPermission()
         checkAndRefreshDeviceUsage()
         FocusFlowWidgetProvider.updateAllWidgets(getApplication())
+
+        // Synchronize all enabled routine alarms with AlarmManager
+        focusSchedules.filter { it.isEnabled && it.isAlarmEnabled }.forEach { sched ->
+            try {
+                FocusAlarmManager.scheduleRoutineAlarm(getApplication(), sched)
+            } catch (_: Exception) {}
+        }
     }
 
     // Timer Controls
@@ -380,10 +499,49 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             FocusSoundManager.play(activeSoundscape)
         }
 
+        val modeTitle = modes.getOrNull(currentModeIndex)?.title ?: "Focus"
+
+        if (repository.isFloatingPillEnabled()) {
+            try {
+                val context = getApplication<Application>().applicationContext
+                com.focusflow.app.service.FloatingFocusIslandService.start(context, modeTitle, timerRemainingSeconds)
+            } catch (_: Exception) {}
+        }
+
+        if (isTimerAlarmEnabled) {
+            try {
+                val context = getApplication<Application>().applicationContext
+                FocusAlarmManager.scheduleTimerAlarm(
+                    context = context,
+                    durationSeconds = timerRemainingSeconds,
+                    modeTitle = modeTitle,
+                    soundName = timerAlarmSound,
+                    vibrate = isTimerVibrateEnabled
+                )
+            } catch (_: Exception) {}
+        }
+
+        val context = getApplication<Application>().applicationContext
+        FocusNotificationHelper.showActiveTimerNotification(
+            context = context,
+            remainingSeconds = timerRemainingSeconds,
+            modeTitle = modeTitle,
+            isRunning = true,
+            taskTitle = selectedTaskForFocus?.title
+        )
+
         timerJob = viewModelScope.launch {
             while (isActive && timerRemainingSeconds > 0) {
                 delay(1000L)
                 timerRemainingSeconds--
+                val ctx = getApplication<Application>().applicationContext
+                FocusNotificationHelper.showActiveTimerNotification(
+                    context = ctx,
+                    remainingSeconds = timerRemainingSeconds,
+                    modeTitle = modes.getOrNull(currentModeIndex)?.title ?: "Focus",
+                    isRunning = true,
+                    taskTitle = selectedTaskForFocus?.title
+                )
             }
 
             if (timerRemainingSeconds <= 0) {
@@ -397,6 +555,18 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         timerJob?.cancel()
         FocusSoundManager.stop()
         repository.setFocusSessionActive(false)
+        try {
+            val context = getApplication<Application>().applicationContext
+            FocusAlarmManager.cancelTimerAlarm(context)
+            com.focusflow.app.service.FloatingFocusIslandService.stop(context)
+            FocusNotificationHelper.showActiveTimerNotification(
+                context = context,
+                remainingSeconds = timerRemainingSeconds,
+                modeTitle = modes.getOrNull(currentModeIndex)?.title ?: "Focus",
+                isRunning = false,
+                taskTitle = selectedTaskForFocus?.title
+            )
+        } catch (_: Exception) {}
     }
 
     fun resetTimer() {
@@ -404,6 +574,12 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         timerRemainingSeconds = modes[currentModeIndex].durationSeconds
         isStrictLockActive = false
         repository.setFocusSessionActive(false)
+        try {
+            val context = getApplication<Application>().applicationContext
+            FocusAlarmManager.cancelTimerAlarm(context)
+            com.focusflow.app.service.FloatingFocusIslandService.stop(context)
+            FocusNotificationHelper.dismissActiveTimerNotification(context)
+        } catch (_: Exception) {}
     }
 
     fun selectMode(index: Int) {
@@ -421,11 +597,33 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         timerJob?.cancel()
         FocusSoundManager.stop()
         repository.setFocusSessionActive(false)
-
         try {
-            val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90)
-            tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
-        } catch (ignored: Exception) {}
+            val context = getApplication<Application>().applicationContext
+            FocusAlarmManager.cancelTimerAlarm(context)
+            com.focusflow.app.service.FloatingFocusIslandService.stop(context)
+            FocusNotificationHelper.dismissActiveTimerNotification(context)
+        } catch (_: Exception) {}
+
+        if (isTimerAlarmEnabled) {
+            val modeTitle = modes.getOrNull(currentModeIndex)?.title ?: "Focus"
+            isAlarmRinging = true
+            alarmRingingTitle = "⏰ $modeTitle Complete!"
+            alarmRingingSubtitle = "Great job! Your focus time is done."
+            alarmRingingSound = timerAlarmSound
+            try {
+                FocusAlarmManager.playAlarm(
+                    context = getApplication(),
+                    soundName = timerAlarmSound,
+                    loop = true,
+                    vibrate = isTimerVibrateEnabled
+                )
+            } catch (_: Exception) {
+                try {
+                    val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90)
+                    tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
+                } catch (_: Exception) {}
+            }
+        }
 
         if (currentModeIndex == 0) {
             val focusMins = customFocusMinutes
@@ -447,14 +645,14 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             repository.recordFocusSession(sessionRecord)
             focusSessionLogs = repository.loadFocusSessions()
 
-            // Update associated task if any
+            // Auto-complete associated focus task and award bonus dopamine coins!
             selectedTaskForFocus?.let { task ->
-                val updatedTask = task.copy(
-                    updatedAt = System.currentTimeMillis()
-                )
-                val current = tasks.map { if (it.id == task.id) updatedTask else it }
-                tasks = current
-                repository.saveTasks(current)
+                if (!task.isCompleted) {
+                    toggleTask(task.id)
+                    repository.addFocusCoins(15)
+                    showBonsaiToastMessage = "🎯 Completed \"${task.title}\"! +15 🪙 bonus coins earned!"
+                }
+                selectedTaskForFocus = null
             }
 
             recalculateGoalsProgress()
@@ -511,18 +709,65 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     fun toggleFocusSchedule(scheduleId: String) {
         repository.toggleFocusSchedule(scheduleId)
         focusSchedules = repository.getFocusSchedules()
+        val sched = focusSchedules.find { it.id == scheduleId }
+        if (sched != null) {
+            if (sched.isEnabled && sched.isAlarmEnabled) {
+                FocusAlarmManager.scheduleRoutineAlarm(getApplication(), sched)
+            } else {
+                FocusAlarmManager.cancelRoutineAlarm(getApplication(), sched.id)
+            }
+        }
     }
 
-    fun updateAppDailyLimit(packageName: String, limitMinutes: Int) {
-        repository.updateAppDailyLimit(packageName, limitMinutes)
+    fun updateAppDailyLimit(packageName: String, limitMinutes: Int, maxOpens: Int = 20, isHardLock: Boolean = false) {
+        repository.updateAppDailyLimit(packageName, limitMinutes, maxOpens, isHardLock)
         blockedApps = repository.getBlockedApps()
+    }
+
+    fun addOrUpdateBlockedApp(app: BlockedApp) {
+        repository.addOrUpdateBlockedApp(app)
+        blockedApps = repository.getBlockedApps()
+    }
+
+    fun removeBlockedApp(packageName: String) {
+        repository.removeBlockedApp(packageName)
+        blockedApps = repository.getBlockedApps()
+    }
+
+    fun updateFocusSchedule(schedule: FocusSchedule) {
+        repository.updateFocusSchedule(schedule)
+        focusSchedules = repository.getFocusSchedules()
+        if (schedule.isEnabled && schedule.isAlarmEnabled) {
+            FocusAlarmManager.scheduleRoutineAlarm(getApplication(), schedule)
+        } else {
+            FocusAlarmManager.cancelRoutineAlarm(getApplication(), schedule.id)
+        }
+    }
+
+    fun updateCategoryBudget(category: String, limitMinutes: Int, isEnabled: Boolean) {
+        repository.updateCategoryBudget(category, limitMinutes, isEnabled)
+        categoryBudgets = repository.getCategoryBudgets()
     }
 
     fun getCurrentlyActiveSchedule(): FocusSchedule? {
         return repository.getCurrentlyActiveSchedule()
     }
 
-    fun addCustomSchedule(name: String, emoji: String, startHour: Int, startMinute: Int, endHour: Int, endMinute: Int, daysSummary: String) {
+    fun addCustomSchedule(
+        name: String,
+        emoji: String,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        daysSummary: String,
+        blockedCategory: String = "All Distractions",
+        isStrictLock: Boolean = false,
+        targetAppPackages: List<String> = emptyList(),
+        isAlarmEnabled: Boolean = true,
+        alarmSound: String = FocusAlarmManager.ALARM_SOUND_ZEN_GONG,
+        isVibrateEnabled: Boolean = true
+    ) {
         val newSchedule = FocusSchedule(
             id = "sched_${System.currentTimeMillis()}",
             name = name.trim().ifEmpty { "Focus Block" },
@@ -532,16 +777,205 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             endHour = endHour,
             endMinute = endMinute,
             daysSummary = daysSummary.ifEmpty { "Daily" },
-            isEnabled = true
+            isEnabled = true,
+            blockedCategory = blockedCategory,
+            isStrictLock = isStrictLock,
+            targetAppPackages = targetAppPackages,
+            isAlarmEnabled = isAlarmEnabled,
+            alarmSound = alarmSound,
+            isVibrateEnabled = isVibrateEnabled
         )
         repository.addFocusSchedule(newSchedule)
         focusSchedules = repository.getFocusSchedules()
+        if (newSchedule.isEnabled && newSchedule.isAlarmEnabled) {
+            FocusAlarmManager.scheduleRoutineAlarm(getApplication(), newSchedule)
+        }
         showAddScheduleModal = false
+        editingScheduleItem = null
+    }
+
+    fun updateFocusScheduleWithApps(
+        scheduleId: String,
+        name: String,
+        emoji: String,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        daysSummary: String,
+        targetAppPackages: List<String>,
+        isAlarmEnabled: Boolean = true,
+        alarmSound: String = FocusAlarmManager.ALARM_SOUND_ZEN_GONG,
+        isVibrateEnabled: Boolean = true
+    ) {
+        val existing = repository.getFocusSchedules().find { it.id == scheduleId }
+        val updated = FocusSchedule(
+            id = scheduleId,
+            name = name.trim().ifEmpty { existing?.name ?: "Focus Block" },
+            emoji = emoji.ifEmpty { existing?.emoji ?: "💼" },
+            startHour = startHour,
+            startMinute = startMinute,
+            endHour = endHour,
+            endMinute = endMinute,
+            daysSummary = daysSummary.ifEmpty { existing?.daysSummary ?: "Daily" },
+            isEnabled = existing?.isEnabled ?: true,
+            blockedCategory = existing?.blockedCategory ?: "All Distractions",
+            isStrictLock = existing?.isStrictLock ?: false,
+            targetAppPackages = targetAppPackages,
+            isAlarmEnabled = isAlarmEnabled,
+            alarmSound = alarmSound,
+            isVibrateEnabled = isVibrateEnabled
+        )
+        repository.updateFocusSchedule(updated)
+        focusSchedules = repository.getFocusSchedules()
+        if (updated.isEnabled && updated.isAlarmEnabled) {
+            FocusAlarmManager.scheduleRoutineAlarm(getApplication(), updated)
+        } else {
+            FocusAlarmManager.cancelRoutineAlarm(getApplication(), updated.id)
+        }
+        showAddScheduleModal = false
+        editingScheduleItem = null
+    }
+
+    fun openScheduleForEditing(schedule: FocusSchedule) {
+        editingScheduleItem = schedule
+        showAddScheduleModal = true
     }
 
     fun deleteFocusSchedule(id: String) {
+        FocusAlarmManager.cancelRoutineAlarm(getApplication(), id)
         repository.deleteFocusSchedule(id)
         focusSchedules = repository.getFocusSchedules()
+        if (editingScheduleItem?.id == id) {
+            editingScheduleItem = null
+        }
+    }
+
+    fun isPackageInstalled(pkg: String): Boolean = repository.isPackageInstalled(pkg)
+
+    private var cachedRoutineApps: List<BlockedApp>? = null
+
+    fun getAvailableRoutineApps(): List<BlockedApp> {
+        val cached = cachedRoutineApps
+        if (cached != null && cached.isNotEmpty()) {
+            val configuredMap = blockedApps.filter { repository.isPackageInstalled(it.packageName) }
+                .associateBy { it.packageName.lowercase() }
+            return cached.map { app ->
+                configuredMap[app.packageName.lowercase()] ?: app
+            }.sortedWith(
+                compareByDescending<BlockedApp> { it.isBlocked && !isOfficeOrWorkspaceApp(it.packageName) }
+                    .thenBy { it.name.lowercase() }
+            )
+        }
+
+        val context = getApplication<Application>()
+        val pm = context.packageManager
+        val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val resolveList = try {
+            pm.queryIntentActivities(launcherIntent, 0)
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val myPkg = context.packageName
+        val configuredMap = blockedApps.filter { repository.isPackageInstalled(it.packageName) }
+            .associateBy { it.packageName.lowercase() }
+
+        val resultList = mutableListOf<BlockedApp>()
+        val seenPkgs = mutableSetOf<String>()
+
+        for (info in resolveList) {
+            val pkg = info.activityInfo?.packageName ?: continue
+            if (pkg == myPkg) continue
+            val pkgLower = pkg.lowercase()
+            if (seenPkgs.contains(pkgLower)) continue
+            seenPkgs.add(pkgLower)
+
+            val existing = configuredMap[pkgLower]
+            if (existing != null) {
+                resultList.add(existing)
+            } else {
+                val label = try {
+                    info.loadLabel(pm)?.toString() ?: pkg
+                } catch (_: Exception) { pkg }
+                val emoji = getEmojiForApp(pkg, label)
+                val category = getCategoryForApp(pkg, label)
+                resultList.add(
+                    BlockedApp(
+                        name = label,
+                        packageName = pkg,
+                        category = category,
+                        iconEmoji = emoji,
+                        isBlocked = false
+                    )
+                )
+            }
+        }
+
+        // Fallback to configured apps if launcher query returned empty
+        val finalResult = if (resultList.isEmpty()) {
+            configuredMap.values.toList()
+        } else {
+            resultList
+        }
+
+        cachedRoutineApps = finalResult
+
+        // Return sorted: blocked apps first, then alphabetically
+        return finalResult.sortedWith(
+            compareByDescending<BlockedApp> { it.isBlocked && !isOfficeOrWorkspaceApp(it.packageName) }
+                .thenBy { it.name.lowercase() }
+        )
+    }
+
+    private fun getEmojiForApp(pkg: String, label: String): String {
+        val l = label.lowercase()
+        val p = pkg.lowercase()
+        return when {
+            p.contains("instagram") -> "📸"
+            p.contains("youtube") -> "▶️"
+            p.contains("tiktok") || p.contains("musically") -> "🎵"
+            p.contains("twitter") || p.contains("x.android") -> "🐦"
+            p.contains("reddit") -> "🤖"
+            p.contains("snapchat") -> "👻"
+            p.contains("facebook") -> "📘"
+            p.contains("whatsapp") -> "💬"
+            p.contains("telegram") -> "✈️"
+            p.contains("discord") -> "🎮"
+            p.contains("netflix") || l.contains("netflix") -> "🎬"
+            p.contains("spotify") || l.contains("spotify") -> "🎧"
+            p.contains("chrome") || l.contains("browser") -> "🌐"
+            p.contains("duolingo") -> "🦉"
+            l.contains("camera") -> "📷"
+            l.contains("gallery") || l.contains("photos") -> "🖼️"
+            l.contains("clock") -> "⏰"
+            l.contains("settings") -> "⚙️"
+            l.contains("mail") || l.contains("gmail") || l.contains("outlook") -> "✉️"
+            l.contains("game") -> "🎮"
+            l.contains("music") -> "🎵"
+            l.contains("map") || l.contains("maps") -> "🗺️"
+            else -> "📱"
+        }
+    }
+
+    private fun getCategoryForApp(pkg: String, label: String): String {
+        val l = label.lowercase()
+        val p = pkg.lowercase()
+        return when {
+            p.contains("instagram") || p.contains("twitter") || p.contains("facebook") || p.contains("snapchat") -> "Social Media"
+            p.contains("youtube") || p.contains("netflix") || p.contains("twitch") -> "Video & Streaming"
+            p.contains("tiktok") || p.contains("musically") -> "Short Video"
+            p.contains("reddit") || p.contains("discord") -> "Community & Forum"
+            p.contains("whatsapp") || p.contains("telegram") || l.contains("message") -> "Messaging"
+            p.contains("chrome") || l.contains("browser") -> "Web Browsers"
+            p.contains("spotify") || l.contains("music") -> "Audio & Music"
+            isEducationalApp(pkg) -> "Education & Learning"
+            isOfficeOrWorkspaceApp(pkg) -> "Productivity & Office"
+            l.contains("game") -> "Games"
+            else -> "Installed Apps"
+        }
     }
 
     // Rewards Store & Themes
@@ -812,10 +1246,40 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun getScreenTimeComposition(): ScreenTimeComposition {
+        val totalMins = totalDeviceScreenTimeMinutes
         val productiveMins = totalFocusMinutes + (savedScreenTimeMinutes * 0.6f).toInt()
         val savedMins = savedScreenTimeMinutes
         val prodHoursStr = "${productiveMins / 60}h ${productiveMins % 60}m"
         val savedHoursStr = "${savedMins / 60}h ${savedMins % 60}m"
+
+        if (totalMins > 0 && deviceUsageStats.isNotEmpty()) {
+            val distractingMins = deviceUsageStats.filter {
+                it.category in listOf("Social", "Video", "Entertainment")
+            }.sumOf { it.minutesToday }
+            val communicationMins = deviceUsageStats.filter {
+                it.category in listOf("Communication", "Browsing")
+            }.sumOf { it.minutesToday }
+            val prodDeviceMins = deviceUsageStats.filter {
+                it.category in listOf("Productivity", "System Tools", "Focus & Wellbeing")
+            }.sumOf { it.minutesToday } + totalFocusMinutes
+
+            val sumAll = (distractingMins + communicationMins + prodDeviceMins).coerceAtLeast(1)
+            val pProd = (prodDeviceMins.toFloat() / sumAll).coerceIn(0.1f, 0.85f)
+            val pDist = (distractingMins.toFloat() / sumAll).coerceIn(0.05f, 0.8f)
+            val pComm = (1f - pProd - pDist).coerceIn(0.05f, 0.5f)
+            val doomReduction = if (distractingMins + savedMins > 0) {
+                ((savedMins.toFloat() / (distractingMins + savedMins).toFloat()) * 100).toInt().coerceIn(15, 95)
+            } else 74
+
+            return ScreenTimeComposition(
+                productivePercent = pProd,
+                communicationPercent = pComm,
+                distractingPercent = pDist,
+                productiveHours = prodHoursStr,
+                savedHours = savedHoursStr,
+                doomscrollReductionPercent = doomReduction
+            )
+        }
 
         return ScreenTimeComposition(
             productivePercent = 0.68f,
@@ -944,18 +1408,40 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun getDoomscrollDefenseStats(): List<DoomscrollDefenseStat> {
         val blocked = reelsBlockedCount.coerceAtLeast(1)
-        val insta = blocked + 12
-        val yt = (blocked * 0.7f).toInt() + 8
-        val snap = (blocked * 0.4f).toInt() + 5
-        val xfeed = (blocked * 0.3f).toInt() + 3
-        val total = (insta + yt + snap + xfeed).coerceAtLeast(1).toFloat()
-
-        return listOf(
-            DoomscrollDefenseStat("Instagram Reels", "📸", insta, insta / total, "${(insta * 3.5f).toInt()}m saved", 0xFFE1306C),
-            DoomscrollDefenseStat("YouTube Shorts", "▶️", yt, yt / total, "${(yt * 3.0f).toInt()}m saved", 0xFFFF0000),
-            DoomscrollDefenseStat("Snapchat Spotlight", "👻", snap, snap / total, "${(snap * 2.5f).toInt()}m saved", 0xFFFFFC00),
-            DoomscrollDefenseStat("X / Twitter Feeds", "𝕏", xfeed, xfeed / total, "${(xfeed * 2.0f).toInt()}m saved", 0xFF1DA1F2)
-        )
+        val list = mutableListOf<DoomscrollDefenseStat>()
+        if (isPackageInstalled("com.instagram.android")) {
+            val insta = blocked + 12
+            list.add(DoomscrollDefenseStat("Instagram Reels", "📸", insta, 0f, "${(insta * 3.5f).toInt()}m saved", 0xFFE1306C))
+        }
+        if (isPackageInstalled("com.google.android.youtube")) {
+            val yt = (blocked * 0.7f).toInt() + 8
+            list.add(DoomscrollDefenseStat("YouTube Shorts", "▶️", yt, 0f, "${(yt * 3.0f).toInt()}m saved", 0xFFFF0000))
+        }
+        if (isPackageInstalled("com.snapchat.android")) {
+            val snap = (blocked * 0.4f).toInt() + 5
+            list.add(DoomscrollDefenseStat("Snapchat Spotlight", "👻", snap, 0f, "${(snap * 2.5f).toInt()}m saved", 0xFFFFFC00))
+        }
+        if (isPackageInstalled("com.zhiliaoapp.musically")) {
+            val tk = (blocked * 0.35f).toInt() + 4
+            list.add(DoomscrollDefenseStat("TikTok Feed", "🎵", tk, 0f, "${(tk * 3.0f).toInt()}m saved", 0xFF00F2FE))
+        }
+        if (isPackageInstalled("com.twitter.android")) {
+            val xfeed = (blocked * 0.3f).toInt() + 3
+            list.add(DoomscrollDefenseStat("X / Twitter Feeds", "𝕏", xfeed, 0f, "${(xfeed * 2.0f).toInt()}m saved", 0xFF1DA1F2))
+        }
+        for (app in blockedApps) {
+            if (list.size >= 4) break
+            if (list.none { it.name.contains(app.name, ignoreCase = true) } && isPackageInstalled(app.packageName)) {
+                val count = (app.opensToday * 2).coerceAtLeast(3)
+                list.add(DoomscrollDefenseStat(app.name, app.iconEmoji, count, 0f, "${count * 3}m saved", 0xFF6366F1))
+            }
+        }
+        if (list.isEmpty()) {
+            val web = (blocked * 0.8f).toInt() + 6
+            list.add(DoomscrollDefenseStat("Web Feeds", "🌐", web, 0f, "${(web * 3.0f).toInt()}m saved", 0xFF10B981))
+        }
+        val total = list.sumOf { it.interceptCount }.coerceAtLeast(1).toFloat()
+        return list.map { it.copy(percent = it.interceptCount / total) }
     }
 
     fun getDopamineTrendHistory(): List<DopamineTrendPoint> {
@@ -975,7 +1461,20 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     fun checkAndRefreshDeviceUsage() {
         val context = getApplication<Application>().applicationContext
         hasUsageAccessPermission = com.focusflow.app.util.PermissionHelper.hasUsageStatsPermission(context)
-        deviceUsageStats = com.focusflow.app.util.DeviceUsageTracker.getRealDailyAppUsage(context)
+        val stats = com.focusflow.app.util.DeviceUsageTracker.getRealDailyAppUsage(context)
+        deviceUsageStats = stats
+        if (stats.isNotEmpty()) {
+            repository.syncBlockedAppsUsageWithRealStats(stats)
+        }
+        blockedApps = repository.getBlockedApps()
+        allAppShieldRules = repository.getAllAppShieldRules()
+        weeklyActivity = repository.getWeeklyActivityHours()
+        
+        // Auto-detect if widget is active on home screen
+        if (!isWidgetPinned && FocusFlowWidgetProvider.isWidgetActiveOnHomeScreen(context)) {
+            isWidgetPinned = true
+            repository.setWidgetPinned(true)
+        }
     }
 
     fun grantEmergencyPass(appName: String = "Instagram Reels", durationSeconds: Int = 60) {
@@ -1491,6 +1990,37 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         repository.setUserGoal(goal)
     }
 
+    fun updateProfile(name: String, bio: String, avatar: String) {
+        val cleanName = name.trim().ifEmpty { "Dinesh" }
+        val cleanBio = bio.trim().ifEmpty { "Conquering distractions & mastering flow" }
+        val cleanAvatar = avatar.trim().ifEmpty { "⚡" }
+        userName = cleanName
+        userBio = cleanBio
+        userAvatar = cleanAvatar
+        repository.setUserName(cleanName)
+        repository.setUserBio(cleanBio)
+        repository.setUserAvatar(cleanAvatar)
+    }
+
+    fun getProfileShareSummary(): String {
+        val level = getUserLevel()
+        val hours = totalFocusMinutes / 60
+        val mins = totalFocusMinutes % 60
+        val reclaimedHours = String.format(java.util.Locale.US, "%.1f", savedScreenTimeMinutes / 60f)
+        return """
+            ⚡ FocusFlow Profile: $userName
+            $userBio
+            
+            🏆 Level ${level.level} • ${level.title}
+            🔥 Streak: $streakDays days (Best: $longestStreakDays days)
+            ⏱️ Focus Time: ${hours}h ${mins}m ($completedSessions sessions)
+            🛡️ Screen Time Reclaimed: ${reclaimedHours}h
+            🪙 Focus Coins: $focusCoins
+            
+            Mastering focus & digital wellbeing with FocusFlow!
+        """.trimIndent()
+    }
+
     fun pinFocusShortcut(context: Context) {
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -1512,12 +2042,23 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
         } catch (_: Exception) {}
+        isShortcutAdded = true
+        repository.setShortcutAdded(true)
     }
 
     fun pinFocusWidget(context: Context): Boolean {
         val success = FocusFlowWidgetProvider.pinWidgetToHomeScreen(context)
         FocusFlowWidgetProvider.updateAllWidgets(context)
+        isWidgetPinned = true
+        repository.setWidgetPinned(true)
         return success
+    }
+
+    fun resetHomeScreenBanners() {
+        isShortcutAdded = false
+        isWidgetPinned = false
+        repository.setShortcutAdded(false)
+        repository.setWidgetPinned(false)
     }
 
     // Onboarding
@@ -1584,7 +2125,64 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             selectMode(1) // 5-minute short break
             startTimer()
         }
+        try {
+            val context = getApplication<Application>().applicationContext
+            val targetApp = if (emergencyPassApp.isNotBlank()) emergencyPassApp else "Puzzle Pass"
+            com.focusflow.app.service.FloatingFocusIslandService.start(context, targetApp, 300)
+        } catch (_: Exception) {}
         refreshStateFromRepository()
+    }
+
+    fun toggleMasterShield(enabled: Boolean) {
+        isMasterShieldEnabled = enabled
+        repository.setMasterShieldEnabled(enabled)
+        com.focusflow.app.widget.FocusFlowWidgetProvider.updateAllWidgets(getApplication())
+    }
+
+    fun toggleAlwaysAllowedApp(packageName: String, allowed: Boolean) {
+        repository.toggleAlwaysAllowedPackage(packageName, allowed)
+        alwaysAllowedPackages = repository.getAlwaysAllowedPackages()
+    }
+
+    fun getAlwaysAllowedAppItems(): List<AlwaysAllowedAppItem> {
+        val currentAllowed = repository.getAlwaysAllowedPackages()
+        val standardList = listOf(
+            AlwaysAllowedAppItem("app_phone", "Phone / Calls", "com.google.android.dialer", "📞", "Communication", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_sms", "Messages & SMS", "com.google.android.apps.messaging", "💬", "Communication", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_teams", "Microsoft Teams", "com.microsoft.teams", "👥", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_outlook", "Microsoft Outlook", "com.microsoft.office.outlook", "✉️", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_office365", "Microsoft 365 (Word/Excel)", "com.microsoft.office.officehubrow", "📊", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_slack", "Slack Work Chat", "com.slack", "💬", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_drive", "Google Drive & Docs", "com.google.android.apps.docs", "📄", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_gmail", "Gmail", "com.google.android.gm", "📬", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_whatsapp", "WhatsApp Messenger", "com.whatsapp", "🟢", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_calendar", "Calendar", "com.google.android.calendar", "📅", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_zoom", "Zoom Meetings", "us.zoom.videomeetings", "📹", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_notion", "Notion & Notes", "notion.id", "📝", "Office & Workspace", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_duo", "Duolingo / Learning", "com.duolingo", "🦉", "Education", isAlwaysAllowed = true, isEssential = true),
+            AlwaysAllowedAppItem("app_maps", "Google Maps & GPS", "com.google.android.apps.maps", "🗺️", "Utilities", currentAllowed.contains("com.google.android.apps.maps")),
+            AlwaysAllowedAppItem("app_calc", "Calculator", "com.google.android.calculator", "🔢", "Utilities", currentAllowed.contains("com.google.android.calculator"), isEssential = true),
+            AlwaysAllowedAppItem("app_clock", "Clock & Alarm", "com.google.android.deskclock", "⏰", "Utilities", currentAllowed.contains("com.google.android.deskclock"), isEssential = true),
+            AlwaysAllowedAppItem("app_photos", "Google Photos / Gallery", "com.google.android.apps.photos", "🖼️", "Media", currentAllowed.contains("com.google.android.apps.photos")),
+            AlwaysAllowedAppItem("app_spotify", "Spotify / Music", "com.spotify.music", "🎵", "Audio", currentAllowed.contains("com.spotify.music"))
+        )
+
+        val standardPkgs = standardList.map { it.packageName.lowercase() }.toSet()
+        val extraItems = currentAllowed.filter { !standardPkgs.contains(it.lowercase()) && it != "com.focusflow.app" }.map { pkg ->
+            AlwaysAllowedAppItem(
+                id = "custom_$pkg",
+                name = pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() },
+                packageName = pkg,
+                iconEmoji = "📱",
+                category = "User Added",
+                isAlwaysAllowed = true
+            )
+        }
+        return standardList + extraItems
+    }
+
+    fun isOfficeOrWorkspaceApp(packageName: String): Boolean {
+        return repository.isOfficeOrWorkspaceApp(packageName)
     }
 
     // --- EVERY APP TOGGLE & SHIELD RULES ---
@@ -1854,6 +2452,8 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                     com.focusflow.app.util.FocusNotificationHelper.scheduleDailyDigest(
                         context, prefs.dailyDigestHour, prefs.dailyDigestMinute
                     )
+                } else {
+                    com.focusflow.app.util.FocusNotificationHelper.cancelDailyDigest(context)
                 }
             }
         }
@@ -1919,6 +2519,42 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                 context, prefs.dailyDigestHour, prefs.dailyDigestMinute
             )
         }
+    }
+
+    fun updateDailyReportTime(hour: Int, minute: Int) {
+        repository.setDailyDigestTime(hour, minute)
+        val context = getApplication<Application>().applicationContext
+        val prefs = repository.getNotificationPreferences()
+        if (prefs.dailyDigestEnabled) {
+            com.focusflow.app.util.FocusNotificationHelper.scheduleDailyDigest(
+                context, hour, minute
+            )
+        }
+    }
+
+    fun sendDailyReportNotification(context: Context) {
+        com.focusflow.app.util.FocusNotificationHelper.createNotificationChannels(context)
+        val realScreenMins = try {
+            com.focusflow.app.util.DeviceUsageTracker.getTotalTrackedScreenTimeMinutes(context)
+        } catch (_: Exception) { 0L }
+
+        val topApps = try {
+            com.focusflow.app.util.DeviceUsageTracker.getRealDailyAppUsage(context).take(3).map {
+                "${it.iconEmoji} ${it.appName}" to it.minutesToday
+            }
+        } catch (_: Exception) { emptyList() }
+
+        com.focusflow.app.util.FocusNotificationHelper.showDailyDigest(
+            context = context,
+            focusMinutes = totalFocusMinutes,
+            sessionsCompleted = completedSessions,
+            screenTimeSaved = savedScreenTimeMinutes,
+            trackedScreenTimeMins = realScreenMins,
+            streakDays = streakDays,
+            coinsEarned = focusCoins,
+            reelsBlocked = reelsBlockedCount,
+            topApps = topApps
+        )
     }
 
     fun sendTestNotification(context: Context) {

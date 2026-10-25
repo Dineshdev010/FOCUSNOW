@@ -325,6 +325,23 @@ fun CodeArenaScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
+                        if (isCorrect && (viewModel.puzzleSolvedCallback != null || viewModel.showCodeChallengeModal)) {
+                            Button(
+                                onClick = {
+                                    viewModel.onJigsawPuzzleSolved()
+                                    onClose()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            ) {
+                                Text("Unlock 5-Min Time Pass ⏱️", color = FocusBackground, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+
                         Button(
                             onClick = {
                                 viewModel.nextChallenge()
@@ -332,13 +349,14 @@ fun CodeArenaScreen(
                                 submitted = false
                                 isCorrect = false
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
+                            colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
+                                .border(1.dp, FocusBorder, RoundedCornerShape(14.dp))
                         ) {
-                            Text("Next Challenge \u2192", color = FocusBackground, fontWeight = FontWeight.Bold)
+                            Text("Next Challenge \u2192", color = FocusWhite, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

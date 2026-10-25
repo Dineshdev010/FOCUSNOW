@@ -29,11 +29,13 @@ import com.focusflow.app.model.*
 import com.focusflow.app.MainActivity
 import com.focusflow.app.data.FocusFlowRepository
 import com.focusflow.app.widget.FocusFlowWidgetProvider
+import com.focusflow.app.util.FocusNotificationHelper
 import java.util.ArrayDeque
 
 class FocusBlockerAccessibilityService : AccessibilityService() {
     private lateinit var repository: FocusFlowRepository
     private var lastInterceptionTime = 0L
+    private var hasWarned80Percent = false
 
     // Floating Live Session Countdown Pill (Regain Trademark)
     private var windowManager: WindowManager? = null
@@ -179,7 +181,10 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         // 0a. Never intercept system Phone/Dialer calls
         if (isPhoneOrCallApp(pkg)) return
 
-        // 0b. Never intercept if user has an active Emergency Pass for this app
+        // 0b. Never intercept educational and learning apps (Duolingo, Khan Academy, Quizlet, etc.)
+        if (repository.isEducationalApp(pkg)) return
+
+        // 0c. Never intercept if user has an active Emergency Pass for this app
         if (repository.isEmergencyPassActiveFor(pkg)) return
 
         val now = System.currentTimeMillis()
@@ -223,7 +228,11 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
             if (antiTamper.preventSettingsAccess && (repository.isFocusSessionActive() || repository.isBedtimeCurfewActive())) {
                 val className = event.className?.toString()?.lowercase() ?: ""
                 val text = event.text.joinToString(" ").lowercase()
-                if (className.contains("accessibility") || className.contains("subsettings") || text.contains("accessibility") || text.contains("focusflow")) {
+                if (className.contains("accessibility") || className.contains("subsettings") ||
+                    className.contains("installedappdetail") || className.contains("appinfo") ||
+                    text.contains("accessibility") || text.contains("focusnow") || text.contains("focusflow") ||
+                    text.contains("uninstall") || text.contains("force stop")
+                ) {
                     lastInterceptionTime = now
                     triggerHapticInterception()
                     performGlobalAction(GLOBAL_ACTION_BACK)
@@ -234,7 +243,28 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
+        // Master Shield Switch: If turned off by user, NO apps are intercepted
+        if (!repository.isMasterShieldEnabled()) return
+
+        // Always Allowed Apps: User can use these apps all the time without any restrictions
+        if (repository.isAlwaysAllowed(pkg)) return
+
         if (isSystemEssentialPackage(pkg)) return
+
+        // Anti-Tamper Protection: Prevent changing settings or uninstalling during active deep focus
+        if (pkg == "com.android.settings" || pkg == "com.google.android.packageinstaller" || pkg == "com.android.packageinstaller") {
+            val antiTamper = repository.getAntiTamperConfig()
+            val isStrict = repository.isStrictModeEnabled() && repository.isFocusSessionActive()
+            if ((antiTamper.preventSettingsAccess || isStrict) && repository.isFocusSessionActive()) {
+                if (now - lastInterceptionTime > 2000L) {
+                    lastInterceptionTime = now
+                    triggerHapticInterception()
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    launchAntiTamperWarning()
+                }
+                return
+            }
+        }
 
         // 0a. STRICT WORK MODE INTERCEPTION
         // When Work Mode is ON, ONLY office products (Teams, Outlook, Office 365), WhatsApp, and phone calls can run.
@@ -353,28 +383,34 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         }
 
         // 5. Whole App Blocking, Regain Morning Shield, Bedtime Curfew & Daily Limits
+        if (repository.isOfficeOrWorkspaceApp(pkg)) {
+            // Office apps and workspace are strictly exempt from all blocking, curfews, schedules, and limits
+            return
+        }
+
         val isExplicitlyBlocked = repository.isPackageInBlockedSet(pkg)
         val isCurfewActive = repository.isBedtimeCurfewActive()
         val isMorningActive = repository.isMorningProtectionCurrentlyActive()
         val blockedApps = repository.getBlockedApps()
         val matchedApp = blockedApps.find { it.packageName == pkg }
         val isOverDailyLimit = matchedApp != null && matchedApp.usedMinutesToday >= matchedApp.dailyLimitMinutes
-        val activeSchedule = repository.getCurrentlyActiveSchedule()
+        val blockingSchedule = repository.getActiveScheduleBlockingApp(pkg)
         val isStrictMode = repository.isStrictModeEnabled()
         val isStrictFocusActive = isStrictMode && repository.isFocusSessionActive()
         val isProductive = repository.isProductiveAppAllowed(pkg)
         val isWorkAllowed = repository.isWorkModeActive() && repository.isWorkAppAllowed(pkg)
+        val isEducational = repository.isEducationalApp(pkg)
 
-        // For YouTube: if NOT explicitly whole-app blocked by user, keep YouTube accessible for long-form study videos (Shorts is handled above)
-        val isYouTubeExemptFromWholeBlock = (pkg == "com.google.android.youtube") && !isExplicitlyBlocked
+        // For YouTube: if NOT explicitly whole-app blocked by user and not blocked by active routine, keep YouTube accessible for long-form study videos (Shorts is handled above)
+        val isYouTubeExemptFromWholeBlock = (pkg == "com.google.android.youtube") && !isExplicitlyBlocked && blockingSchedule == null
 
-        if (!isYouTubeExemptFromWholeBlock && !isProductive && !isWorkAllowed) {
+        if (!isYouTubeExemptFromWholeBlock && !isProductive && !isWorkAllowed && !isEducational) {
             val shouldBlock = isExplicitlyBlocked ||
                     (matchedApp != null && matchedApp.isBlocked) ||
                     isCurfewActive ||
                     isMorningActive ||
                     isStrictFocusActive ||
-                    activeSchedule != null ||
+                    blockingSchedule != null ||
                     isOverDailyLimit
 
             if (shouldBlock) {
@@ -386,7 +422,7 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                 val reasonMsg = when {
                     isCurfewActive -> "$appLabel (Bedtime Curfew Active 🌙)"
                     isMorningActive -> "$appLabel (Morning Dopamine Shield 🌅)"
-                    activeSchedule != null -> "$appLabel (Schedule: ${activeSchedule.name})"
+                    blockingSchedule != null -> "$appLabel (Routine: ${blockingSchedule.name} ⚡)"
                     isOverDailyLimit -> "$appLabel (Daily ${matchedApp?.dailyLimitMinutes ?: 15}m Limit Reached)"
                     isExplicitlyBlocked -> "$appLabel (Blocked by Shield Rule 🛡️)"
                     else -> appLabel
@@ -395,6 +431,34 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                 launchMindfulPause(reasonMsg, pkg)
                 return
             }
+        }
+
+        // 6. Active In-App Continuous Tracking & Warnings
+        if (currentForegroundPackage != pkg) {
+            currentForegroundPackage = pkg
+            foregroundAppStartTime = now
+            lastScrollNudgeTriggerTime = 0L
+            hasWarned80Percent = false
+        } else {
+            val elapsedMinutes = (now - foregroundAppStartTime) / 60000L
+            if (matchedApp != null) {
+                val liveTotalMinutes = matchedApp.usedMinutesToday + elapsedMinutes.toInt()
+                if (liveTotalMinutes >= matchedApp.dailyLimitMinutes && (now - lastInterceptionTime > 3000L)) {
+                    lastInterceptionTime = now
+                    triggerHapticInterception()
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    FocusNotificationHelper.showAppLimitExceeded(applicationContext, matchedApp.name, matchedApp.dailyLimitMinutes)
+                    val appLabel = matchedApp.name
+                    FocusFlowWidgetProvider.updateAllWidgets(applicationContext)
+                    launchMindfulPause("$appLabel (Daily ${matchedApp.dailyLimitMinutes}m Limit Reached 🛑)", pkg)
+                    return
+                } else if (!hasWarned80Percent && liveTotalMinutes >= (matchedApp.dailyLimitMinutes * 0.8f).toInt() && matchedApp.dailyLimitMinutes > 5) {
+                    hasWarned80Percent = true
+                    val rem = (matchedApp.dailyLimitMinutes - liveTotalMinutes).coerceAtLeast(1)
+                    FocusNotificationHelper.showAppLimitWarning(applicationContext, matchedApp.name, rem)
+                }
+            }
+            checkScrollNudge(pkg, now)
         }
     }
 
@@ -659,13 +723,16 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         // 2. Active emergency pass for this app
         if (repository.isEmergencyPassActiveFor(pkg)) return true
 
-        // 3. System core essentials (launcher, keyboards, settings)
+        // 3. Educational & learning apps (Duolingo, Khan Academy, Quizlet, etc.) are always allowed
+        if (repository.isEducationalApp(pkg)) return true
+
+        // 4. System core essentials (launcher, keyboards, settings)
         if (isSystemEssentialPackage(pkg)) return true
 
-        // 4. Phone & calling apps
+        // 5. Phone & calling apps
         if (isPhoneOrCallApp(pkg)) return true
 
-        // 5. Office Products & WhatsApp (Teams, Outlook, WhatsApp, MS 365, Slack, Docs)
+        // 6. Office Products & WhatsApp (Teams, Outlook, WhatsApp, MS 365, Slack, Docs)
         if (repository.isWorkAppAllowed(pkg)) return true
 
         return false
@@ -678,16 +745,19 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         // 2. Active emergency pass for this app
         if (repository.isEmergencyPassActiveFor(pkg)) return true
 
-        // 3. System core essentials (launcher, keyboards, settings)
+        // 3. Educational & learning apps (Duolingo, Khan Academy, Quizlet, etc.) are always allowed
+        if (repository.isEducationalApp(pkg)) return true
+
+        // 4. System core essentials (launcher, keyboards, settings)
         if (isSystemEssentialPackage(pkg)) return true
 
-        // 4. Phone & calling apps
+        // 5. Phone & calling apps
         if (isPhoneOrCallApp(pkg)) return true
 
-        // 5. Work app allowed if Work Mode is active
-        if (repository.isWorkModeActive() && repository.isWorkAppAllowed(pkg)) return true
+        // 6. Office apps and workspace are ALWAYS allowed
+        if (repository.isOfficeOrWorkspaceApp(pkg) || repository.isWorkAppAllowed(pkg)) return true
 
-        // 6. Productive whitelist apps
+        // 7. Productive whitelist apps
         if (repository.isProductiveAppAllowed(pkg)) return true
 
         return false
@@ -831,9 +901,10 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                         elevation = 12 * density
                     }
 
-                    val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
                     } else {
+                        @Suppress("DEPRECATION")
                         WindowManager.LayoutParams.TYPE_PHONE
                     }
 
@@ -841,7 +912,7 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                         WindowManager.LayoutParams.WRAP_CONTENT,
                         WindowManager.LayoutParams.WRAP_CONTENT,
                         overlayType,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                         android.graphics.PixelFormat.TRANSLUCENT
                     ).apply {
                         gravity = Gravity.TOP or Gravity.END
@@ -865,8 +936,12 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                                 true
                             }
                             MotionEvent.ACTION_MOVE -> {
-                                params.x = initialX - (motionEvent.rawX - initialTouchX).toInt()
-                                params.y = initialY + (motionEvent.rawY - initialTouchY).toInt()
+                                val metrics = resources.displayMetrics
+                                val maxX = (metrics.widthPixels - view.width).coerceAtLeast(0)
+                                val maxY = (metrics.heightPixels - view.height).coerceAtLeast(0)
+                                val minY = (36 * metrics.density).toInt()
+                                params.x = (initialX - (motionEvent.rawX - initialTouchX).toInt()).coerceIn(0, maxX)
+                                params.y = (initialY + (motionEvent.rawY - initialTouchY).toInt()).coerceIn(minY, maxY)
                                 try {
                                     wm.updateViewLayout(view, params)
                                 } catch (_: Exception) {}

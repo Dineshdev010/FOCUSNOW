@@ -66,7 +66,7 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Header
         Row(
@@ -324,7 +324,7 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(135.dp))
+        Spacer(modifier = Modifier.height(44.dp))
     }
 
     // Modal: Create Habit Dialog

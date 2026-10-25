@@ -113,5 +113,16 @@ class FocusFlowWidgetProvider : AppWidgetProvider() {
             }
             return false
         }
+
+        fun isWidgetActiveOnHomeScreen(context: Context): Boolean {
+            return try {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val thisWidget = ComponentName(context, FocusFlowWidgetProvider::class.java)
+                val ids = appWidgetManager.getAppWidgetIds(thisWidget)
+                ids != null && ids.isNotEmpty()
+            } catch (e: Exception) {
+                false
+            }
+        }
     }
 }

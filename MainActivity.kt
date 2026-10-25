@@ -46,6 +46,8 @@ import com.focusflow.app.ui.components.NavTasksIcon
 import com.focusflow.app.ui.components.AntiTamperAlertDialog
 import com.focusflow.app.ui.screens.AchievementsScreen
 import com.focusflow.app.ui.screens.AddScheduleDialog
+import com.focusflow.app.ui.screens.AlarmRingingDialog
+import com.focusflow.app.ui.screens.AppLimitsAndSchedulesScreen
 import com.focusflow.app.ui.screens.CodeArenaScreen
 import com.focusflow.app.ui.screens.EmergencyPassDialog
 import com.focusflow.app.ui.screens.FocusDigestDialog
@@ -56,6 +58,7 @@ import com.focusflow.app.ui.screens.MindfulPauseDialog
 import com.focusflow.app.ui.screens.JigsawPuzzleDialog
 import com.focusflow.app.ui.screens.OnboardingScreen
 import com.focusflow.app.ui.screens.ProductiveWhitelistDialog
+import com.focusflow.app.ui.screens.ProfileScreen
 import com.focusflow.app.ui.screens.ProgressScreen
 import com.focusflow.app.ui.screens.ReelsBlockerDialog
 import com.focusflow.app.ui.screens.RewardsStoreDialog
@@ -165,6 +168,20 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
 
+                                        if (viewModel.showProfileScreen) {
+                                            ProfileScreen(
+                                                viewModel = viewModel,
+                                                onClose = { viewModel.showProfileScreen = false }
+                                            )
+                                        }
+
+                                        if (viewModel.showAppLimitsAndSchedulesModal) {
+                                            AppLimitsAndSchedulesScreen(
+                                                viewModel = viewModel,
+                                                onClose = { viewModel.showAppLimitsAndSchedulesModal = false }
+                                            )
+                                        }
+
                                         if (viewModel.showSettingsScreen) {
                                             SettingsScreen(
                                                 viewModel = viewModel,
@@ -175,7 +192,10 @@ class MainActivity : ComponentActivity() {
                                         if (viewModel.showAddScheduleModal) {
                                             AddScheduleDialog(
                                                 viewModel = viewModel,
-                                                onClose = { viewModel.showAddScheduleModal = false }
+                                                onClose = {
+                                                    viewModel.showAddScheduleModal = false
+                                                    viewModel.editingScheduleItem = null
+                                                }
                                             )
                                         }
 
@@ -224,6 +244,13 @@ class MainActivity : ComponentActivity() {
                                             ProductiveWhitelistDialog(
                                                 viewModel = viewModel,
                                                 onClose = { viewModel.showProductiveWhitelistModal = false }
+                                            )
+                                        }
+
+                                        if (viewModel.showAlwaysAllowedModal) {
+                                            com.focusflow.app.ui.screens.AlwaysAllowedAppsDialog(
+                                                viewModel = viewModel,
+                                                onClose = { viewModel.showAlwaysAllowedModal = false }
                                             )
                                         }
 
@@ -279,6 +306,14 @@ class MainActivity : ComponentActivity() {
                                             JigsawPuzzleDialog(
                                                 viewModel = viewModel,
                                                 onClose = { viewModel.closeJigsawPuzzle() }
+                                            )
+                                        }
+
+                                        // Full-Screen Focus & Routine Alarm Ringing Alert
+                                        if (viewModel.isAlarmRinging) {
+                                            AlarmRingingDialog(
+                                                viewModel = viewModel,
+                                                onDismiss = { viewModel.dismissRingingAlarm() }
                                             )
                                         }
                                     }
@@ -365,6 +400,17 @@ class MainActivity : ComponentActivity() {
 
     private fun handleInterceptionIntent(intent: Intent?) {
         if (intent == null) return
+        val triggerAlarm = intent.hasExtraFlag("TRIGGER_ALARM_RINGING")
+        if (triggerAlarm) {
+            viewModel.appStage = AppStage.MAIN
+            viewModel.isAlarmRinging = true
+            val title = intent.getStringExtra("ALARM_TITLE") ?: "⏰ Focus Complete!"
+            val sub = intent.getStringExtra("ALARM_SUBTITLE") ?: "Your focus session is done."
+            val sound = intent.getStringExtra("ALARM_SOUND") ?: viewModel.timerAlarmSound
+            viewModel.alarmRingingTitle = title
+            viewModel.alarmRingingSubtitle = sub
+            viewModel.alarmRingingSound = sound
+        }
         val navTab = intent.getStringExtra("NAVIGATE_TAB")
         if (navTab != null) {
             viewModel.appStage = AppStage.MAIN
@@ -381,7 +427,9 @@ class MainActivity : ComponentActivity() {
         val triggerRegainTimesUp = intent.hasExtraFlag("TRIGGER_REGAIN_TIMES_UP")
         if (triggerRegainTimesUp) {
             viewModel.appStage = AppStage.MAIN
-            val appName = intent.getStringExtra("TIMES_UP_APP_NAME") ?: "App"
+            val appName = intent.getStringExtra("TIMES_UP_APP_NAME")
+                ?: intent.getStringExtra("LOCKED_APP_NAME")
+                ?: "App"
             val pkgName = intent.getStringExtra("TIMES_UP_PACKAGE_NAME") ?: ""
             viewModel.triggerRegainTimesUp(appName, pkgName)
         }
@@ -422,11 +470,32 @@ class MainActivity : ComponentActivity() {
             viewModel.appStage = AppStage.MAIN
             viewModel.showReelsBlockerSheet = true
         }
+
+        // Quick timer notification actions
+        if (intent.action == "com.focusflow.ACTION_PAUSE_RESUME_TIMER") {
+            viewModel.appStage = AppStage.MAIN
+            viewModel.selectedTab = "Focus"
+            if (viewModel.isTimerRunning) {
+                viewModel.pauseTimer()
+            } else {
+                viewModel.startTimer()
+            }
+        }
+        if (intent.action == "com.focusflow.ACTION_ADD_FIVE_MINS") {
+            viewModel.appStage = AppStage.MAIN
+            viewModel.selectedTab = "Focus"
+            viewModel.adjustTimerMinutes(5)
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        viewModel.checkAndRefreshDeviceUsage()
         FocusFlowWidgetProvider.updateAllWidgets(this)
+        if (viewModel.isTimerRunning && viewModel.isFloatingPillEnabled && com.focusflow.app.util.PermissionHelper.hasOverlayPermission(this)) {
+            val modeTitle = viewModel.modes.getOrNull(viewModel.currentModeIndex)?.title ?: "Focus"
+            com.focusflow.app.service.FloatingFocusIslandService.start(this, modeTitle, viewModel.timerRemainingSeconds)
+        }
     }
 }
 
@@ -474,8 +543,9 @@ fun FocusFlowMainApp(viewModel: FocusFlowViewModel) {
                 "Home" -> HomeScreen(viewModel)
                 "Focus" -> FocusScreen(viewModel)
                 "Tasks" -> TasksScreen(viewModel)
-                "Habits & Goals" -> HabitsAndGoalsScreen(viewModel)
+                "Habits & Goals", "Habits" -> HabitsAndGoalsScreen(viewModel)
                 "Progress" -> ProgressScreen(viewModel)
+                else -> HomeScreen(viewModel)
             }
         }
 
@@ -540,7 +610,8 @@ fun FocusFlowMainApp(viewModel: FocusFlowViewModel) {
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             maxLines = 1,
-                            softWrap = false
+                            softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }

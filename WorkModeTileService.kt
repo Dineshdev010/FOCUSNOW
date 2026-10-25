@@ -46,7 +46,7 @@ class WorkModeTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = if (isActive) "Active (Teams & Outlook)" else "Off"
         }
-        tile.icon = Icon.createWithResource(this, R.mipmap.ic_launcher)
+        tile.icon = Icon.createWithResource(this, R.drawable.ic_launcher_foreground)
         tile.updateTile()
     }
 }

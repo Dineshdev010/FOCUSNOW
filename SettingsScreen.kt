@@ -1,5 +1,8 @@
 package com.focusflow.app.ui.screens
 
+import android.app.TimePickerDialog
+import android.widget.Toast
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,6 +55,7 @@ import com.focusflow.app.viewmodel.FocusFlowViewModel
 
 @Composable
 fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
 
@@ -112,7 +116,12 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
 
         // --- PROFILE & LEVEL CARD ---
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    viewModel.showProfileScreen = true
+                },
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = FocusPanel)
         ) {
@@ -137,24 +146,34 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = viewModel.getUserLevel().level.toString(),
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = FocusAccent
+                            text = viewModel.userAvatar,
+                            fontSize = 26.sp
                         )
                     }
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = viewModel.userName,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FocusWhite
+                            )
+                            Text(
+                                text = "View Profile ›",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = FocusAccent
+                            )
+                        }
                         Text(
-                            text = viewModel.getUserLevel().title,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = FocusWhite
-                        )
-                        Text(
-                            text = "Level ${viewModel.getUserLevel().level} • ${viewModel.getUserLevel().totalXp} XP total",
+                            text = "Level ${viewModel.getUserLevel().level} • ${viewModel.getUserLevel().title}",
                             fontSize = 12.sp,
-                            color = FocusMuted
+                            color = FocusSecondary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         // XP Progress Bar
@@ -322,7 +341,212 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
         SettingsSectionHeader(title = "🔔 Notifications", subtitle = "Control what FocusNow sends you")
         Spacer(modifier = Modifier.height(8.dp))
 
+        // --- DAILY REPORT NOTIFICATION ---
+        SettingsSectionHeader(
+            title = "📊 Daily Evening Report Notification",
+            subtitle = "Automatic evening summary of your focus time, screen time & blocked apps"
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
         val notifPrefs = viewModel.getNotificationPreferences()
+
+        SettingsCard {
+            SettingsToggleRow(
+                label = "Daily Report Notification",
+                emoji = "📊",
+                subtitle = if (notifPrefs.dailyDigestEnabled) "Sends rich daily summary to notification drawer" else "Report notifications turned off",
+                isChecked = notifPrefs.dailyDigestEnabled,
+                onToggle = { viewModel.updateNotificationPref("daily_digest", it) }
+            )
+
+            if (notifPrefs.dailyDigestEnabled) {
+                SettingsDivider()
+
+                // Delivery Time Selector
+                val reportHour = notifPrefs.dailyDigestHour
+                val reportMinute = notifPrefs.dailyDigestMinute
+                val isPm = reportHour >= 12
+                val h12 = if (reportHour % 12 == 0) 12 else reportHour % 12
+                val formattedTime = String.format(Locale.US, "%02d:%02d %s", h12, reportMinute, if (isPm) "PM" else "AM")
+
+                val timePickerDialog = remember(reportHour, reportMinute) {
+                    TimePickerDialog(
+                        context,
+                        { _, selectedHour, selectedMinute ->
+                            viewModel.updateDailyReportTime(selectedHour, selectedMinute)
+                            Toast.makeText(context, "Report scheduled for ${String.format(Locale.US, "%02d:%02d", selectedHour, selectedMinute)}", Toast.LENGTH_SHORT).show()
+                        },
+                        reportHour,
+                        reportMinute,
+                        false
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Scheduled Delivery Time",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = FocusWhite
+                            )
+                            Text(
+                                text = "Delivered every evening at $formattedTime",
+                                fontSize = 11.sp,
+                                color = FocusAccent
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(FocusAccent.copy(alpha = 0.15f))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    timePickerDialog.show()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "⏰ $formattedTime",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FocusAccent
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Preset chips for quick selection
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            Triple("8:00 PM", 20, 0),
+                            Triple("8:30 PM", 20, 30),
+                            Triple("9:00 PM", 21, 0),
+                            Triple("9:30 PM", 21, 30),
+                            Triple("10:00 PM", 22, 0)
+                        ).forEach { (label, h, m) ->
+                            val isCurrentPreset = (reportHour == h && reportMinute == m)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isCurrentPreset) FocusAccent else FocusPanelLight)
+                                    .border(
+                                        1.dp,
+                                        if (isCurrentPreset) FocusAccent else FocusPanelBorder,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.updateDailyReportTime(h, m)
+                                        Toast.makeText(context, "Report time set to $label", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isCurrentPreset) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isCurrentPreset) FocusBackground else FocusSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                SettingsDivider()
+
+                // Live Preview Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FocusPanelLight)
+                        .border(1.dp, FocusPanelBorder, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📱 Tonight's Notification Preview",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FocusWhite
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(FocusAccent.copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "LIVE METRICS",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = FocusAccent
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val focusH = viewModel.totalFocusMinutes / 60
+                        val focusM = viewModel.totalFocusMinutes % 60
+                        val fStr = if (focusH > 0) "${focusH}h ${focusM}m" else "${focusM}m"
+                        val savedH = viewModel.savedScreenTimeMinutes / 60
+                        val savedM = viewModel.savedScreenTimeMinutes % 60
+                        val sStr = if (savedH > 0) "${savedH}h ${savedM}m" else "${savedM}m"
+
+                        Text(
+                            text = "⏱️ Deep Focus: $fStr (${viewModel.completedSessions} sessions)\n🛡️ Screen Time Reclaimed: $sStr\n🔥 Current Streak: ${viewModel.streakDays} days · 🪙 +${viewModel.focusCoins} coins\n🚫 Distractions Intercepted: ${viewModel.reelsBlockedCount}",
+                            fontSize = 11.sp,
+                            color = FocusSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                SettingsDivider()
+
+                // Action to immediately send report
+                SettingsActionRow(
+                    label = "Send Preview Report Now",
+                    emoji = "📲",
+                    subtitle = "Instantly push today's full report to notification tray",
+                    actionLabel = "Send Report",
+                    onClick = {
+                        viewModel.sendDailyReportNotification(context)
+                        Toast.makeText(context, "Daily Report notification sent! 📊", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // --- OTHER NOTIFICATIONS ---
+        SettingsSectionHeader(title = "🔔 Other Notifications", subtitle = "Nudges, reminders & alerts")
+        Spacer(modifier = Modifier.height(8.dp))
 
         SettingsCard {
             SettingsToggleRow(
@@ -339,14 +563,6 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                 subtitle = "Alerts when your streak is at risk",
                 isChecked = notifPrefs.streakAlertsEnabled,
                 onToggle = { viewModel.updateNotificationPref("streak_alerts", it) }
-            )
-            SettingsDivider()
-            SettingsToggleRow(
-                label = "Daily Digest",
-                emoji = "📊",
-                subtitle = "End-of-day focus summary",
-                isChecked = notifPrefs.dailyDigestEnabled,
-                onToggle = { viewModel.updateNotificationPref("daily_digest", it) }
             )
             SettingsDivider()
             SettingsToggleRow(
@@ -381,9 +597,8 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                 onToggle = { viewModel.updateNotificationPref("quiet_hours", it) }
             )
             SettingsDivider()
-            val context = LocalContext.current
             SettingsActionRow(
-                label = "Test Notification",
+                label = "Test Focus Notification",
                 emoji = "🔔",
                 subtitle = "Preview focus alert on this device",
                 actionLabel = "Send Test",
@@ -429,6 +644,44 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                 isChecked = viewModel.isNotificationShieldEnabled,
                 onToggle = { viewModel.toggleNotificationShield(it) }
             )
+            SettingsDivider()
+            SettingsToggleRow(
+                label = "Master Distraction Shield",
+                emoji = "🛡️",
+                subtitle = if (viewModel.isMasterShieldEnabled) "Turn off anytime • Active & Guarding" else "Turned OFF • Protection paused",
+                isChecked = viewModel.isMasterShieldEnabled,
+                onToggle = { viewModel.toggleMasterShield(it) }
+            )
+            SettingsDivider()
+            SettingsToggleRow(
+                label = "Floating Focus Island",
+                emoji = "🏝️",
+                subtitle = "Live countdown pill floating over your screen & apps",
+                isChecked = viewModel.isFloatingPillEnabled,
+                onToggle = { enabled ->
+                    viewModel.toggleFloatingPill(enabled)
+                    if (enabled && !com.focusflow.app.util.PermissionHelper.hasOverlayPermission(context)) {
+                        com.focusflow.app.util.PermissionHelper.openOverlaySettings(context)
+                    }
+                }
+            )
+            SettingsDivider()
+            SettingsActionRow(
+                label = "App Budgets & Focus Windows",
+                emoji = "⏱️",
+                subtitle = "Custom daily caps, live usage rings & automated focus blocks",
+                actionLabel = "Configure",
+                onClick = { viewModel.showAppLimitsAndSchedulesModal = true }
+            )
+            SettingsDivider()
+            SettingsActionRow(
+                label = "Always Allowed Apps",
+                emoji = "🟢",
+                subtitle = "Choose apps you can use all the time (exempt from limits)",
+                actionLabel = "Edit",
+                onClick = { viewModel.showAlwaysAllowedModal = true }
+            )
+            SettingsDivider()
             SettingsActionRow(
                 label = "Productive Whitelist",
                 emoji = "✅",
@@ -459,6 +712,16 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                 subtitle = "Circadian wind-down, curfew hours & sleep stats",
                 actionLabel = "Open",
                 onClick = { viewModel.showSleepTrackerModal = true }
+            )
+            SettingsDivider()
+            val isBattOptimized = com.focusflow.app.util.PermissionHelper.isBatteryOptimizationIgnored(context)
+            SettingsActionRow(
+                label = "Background Reliability",
+                emoji = "🔋",
+                subtitle = if (isBattOptimized) "Optimized • Protected against Android task killer" else "Action needed • Tap to exempt from battery killer",
+                actionLabel = if (isBattOptimized) "Active 🟢" else "Fix ⚙️",
+                actionColor = if (isBattOptimized) FocusAccent else CategoryUrgent,
+                onClick = { com.focusflow.app.util.PermissionHelper.requestIgnoreBatteryOptimization(context) }
             )
         }
 
@@ -599,6 +862,19 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                 actionColor = PriorityHigh,
                 onClick = { viewModel.resetAllData(context) }
             )
+            if (viewModel.isShortcutAdded || viewModel.isWidgetPinned) {
+                SettingsDivider()
+                SettingsActionRow(
+                    label = "Restore Home Screen Cards",
+                    emoji = "🔄",
+                    subtitle = "Show the Quick Focus shortcut & Live Widget cards again",
+                    actionLabel = "Restore",
+                    onClick = {
+                        viewModel.resetHomeScreenBanners()
+                        Toast.makeText(context, "Home screen shortcut & widget cards restored! 📌", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -629,7 +905,7 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(44.dp))
         }
     }
 }

@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -191,12 +193,14 @@ fun MindfulPauseDialog(
         label = "breathScale"
     )
 
-    val savedHours = String.format("%.1f", viewModel.savedScreenTimeMinutes / 60f)
+    val savedHours = String.format(java.util.Locale.US, "%.1f", viewModel.savedScreenTimeMinutes / 60f)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.96f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {

@@ -31,6 +31,8 @@ class FloatingFocusIslandService : Service() {
     private var floatingView: View? = null
     private var countDownTimer: CountDownTimer? = null
     private var timerTextView: TextView? = null
+    private var appLabelTextView: TextView? = null
+    private var params: WindowManager.LayoutParams? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -38,17 +40,45 @@ class FloatingFocusIslandService : Service() {
         val appName = intent?.getStringExtra(EXTRA_APP_NAME) ?: "App"
         val totalSeconds = intent?.getIntExtra(EXTRA_SECONDS, 300) ?: 300
 
-        startForegroundNotification(appName, totalSeconds)
+        val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+        startForegroundNotification(appName, totalSeconds, hasOverlay)
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+        if (hasOverlay) {
             showFloatingPill(appName, totalSeconds)
+        } else {
+            // Overlay permission is required to float over other apps on Android
+            try {
+                val overlayIntent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:$packageName")
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(overlayIntent)
+            } catch (_: Exception) {
+                try {
+                    val overlayIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    startActivity(overlayIntent)
+                } catch (_: Exception) {}
+            }
         }
 
         startCountdown(appName, totalSeconds)
         return START_NOT_STICKY
     }
 
-    private fun startForegroundNotification(appName: String, totalSeconds: Int) {
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    private fun getStatusBarHeight(): Int {
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else dpToPx(32)
+    }
+
+    private fun startForegroundNotification(appName: String, totalSeconds: Int, hasOverlayPermission: Boolean) {
         val channelId = "floating_focus_island"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -70,21 +100,54 @@ class FloatingFocusIslandService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, channelId)
+        val notifBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("⏱️ $appName Active")
-            .setContentText("Micro-session running • Tap to return to FocusFlow")
-            .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
 
-        startForeground(NOTIF_ID, notification)
+        if (!hasOverlayPermission) {
+            val overlayIntent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:$packageName")
+            ).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            val overlayPendingIntent = PendingIntent.getActivity(
+                this, 101, overlayIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            notifBuilder
+                .setContentTitle("🏝️ Enable Floating Screen ($appName)")
+                .setContentText("Tap to allow FocusNow to float on screen over your apps")
+                .setContentIntent(overlayPendingIntent)
+                .addAction(0, "Enable Permission ⚙️", overlayPendingIntent)
+        } else {
+            notifBuilder
+                .setContentTitle("⏱️ $appName Active")
+                .setContentText("Floating session running • Tap to return to FocusNow")
+                .setContentIntent(pendingIntent)
+        }
+
+        val notification = notifBuilder.build()
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIF_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(NOTIF_ID, notification)
+            }
+        } catch (_: Exception) {}
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun showFloatingPill(appName: String, totalSeconds: Int) {
-        if (floatingView != null) return
+        if (floatingView != null) {
+            // Already floating on top of screen / used app: update label and restart countdown
+            appLabelTextView?.text = " • $appName"
+            timerTextView?.text = formatTime(totalSeconds)
+            startCountdown(appName, totalSeconds)
+            return
+        }
 
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
@@ -95,28 +158,45 @@ class FloatingFocusIslandService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        val params = WindowManager.LayoutParams(
+        val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val statusBarHeight = getStatusBarHeight()
+        val topY = (statusBarHeight + dpToPx(16)).coerceAtLeast(dpToPx(60))
+        val initialEstimatedWidth = dpToPx(200)
+
+        val windowParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            flags,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 120
+            gravity = Gravity.TOP or Gravity.START
+            x = ((screenWidth - initialEstimatedWidth) / 2).coerceAtLeast(dpToPx(16))
+            y = topY
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
         }
+        this.params = windowParams
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(36, 18, 36, 18)
+            setPadding(dpToPx(16), dpToPx(8), dpToPx(14), dpToPx(8))
 
             val bg = GradientDrawable().apply {
-                setColor(Color.parseColor("#EE161D26"))
-                cornerRadius = 60f
-                setStroke(3, Color.parseColor("#443DD598"))
+                setColor(Color.parseColor("#F50F1014")) // Obsidian Luxury Dark
+                cornerRadius = dpToPx(24).toFloat()
+                setStroke(dpToPx(1), Color.parseColor("#9BE564")) // Lime Zen Glow Rim
             }
             background = bg
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                elevation = dpToPx(10).toFloat()
+            }
         }
 
         val iconText = TextView(this).apply {
@@ -127,9 +207,9 @@ class FloatingFocusIslandService : Service() {
 
         timerTextView = TextView(this).apply {
             text = formatTime(totalSeconds)
-            setTextColor(Color.parseColor("#3DD598"))
+            setTextColor(Color.parseColor("#9BE564"))
             textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.MONOSPACE
         }
         container.addView(timerTextView)
 
@@ -137,19 +217,30 @@ class FloatingFocusIslandService : Service() {
             text = " • $appName"
             setTextColor(Color.WHITE)
             textSize = 12f
-            setPadding(10, 0, 16, 0)
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            maxWidth = dpToPx(160)
+            setPadding(dpToPx(4), 0, dpToPx(10), 0)
         }
+        appLabelTextView = appLabel
         container.addView(appLabel)
+
+        // Subtle vertical separator
+        val divider = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(1), dpToPx(16)).apply {
+                setMargins(0, 0, dpToPx(8), 0)
+            }
+            setBackgroundColor(Color.parseColor("#33FFFFFF"))
+        }
+        container.addView(divider)
 
         val closeBtn = TextView(this).apply {
             text = "✕"
-            setTextColor(Color.parseColor("#88A0B2"))
+            setTextColor(Color.parseColor("#9CA3AF"))
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(16, 0, 8, 0)
-            setOnClickListener {
-                stopSelf()
-            }
+            setPadding(dpToPx(6), dpToPx(4), dpToPx(4), dpToPx(4))
         }
         container.addView(closeBtn)
 
@@ -157,33 +248,62 @@ class FloatingFocusIslandService : Service() {
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
+        var isDragging = false
 
         container.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    initialX = params.x
-                    initialY = params.y
+                    initialX = windowParams.x
+                    initialY = windowParams.y
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
+                    isDragging = false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
+                    val deltaX = (event.rawX - initialTouchX).toInt()
+                    val deltaY = (event.rawY - initialTouchY).toInt()
+                    if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
+                        isDragging = true
+                    }
+                    val metrics = resources.displayMetrics
+                    val viewWidth = container.width.takeIf { it > 0 } ?: dpToPx(180)
+                    val viewHeight = container.height.takeIf { it > 0 } ?: dpToPx(44)
+                    val maxX = (metrics.widthPixels - viewWidth).coerceAtLeast(0)
+                    val maxY = (metrics.heightPixels - viewHeight).coerceAtLeast(0)
+
+                    windowParams.x = (initialX + deltaX).coerceIn(0, maxX)
+                    windowParams.y = (initialY + deltaY).coerceIn(getStatusBarHeight(), maxY)
                     try {
-                        windowManager?.updateViewLayout(container, params)
+                        windowManager?.updateViewLayout(container, windowParams)
                     } catch (_: Exception) {}
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     val diffX = Math.abs(event.rawX - initialTouchX)
                     val diffY = Math.abs(event.rawY - initialTouchY)
-                    if (diffX < 10 && diffY < 10) {
-                        // Clicked pill -> bring FocusFlow to front
-                        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    if (!isDragging && diffX < 14 && diffY < 14) {
+                        // Check if tap was on close button
+                        val closeLocation = IntArray(2)
+                        closeBtn.getLocationOnScreen(closeLocation)
+                        val closeLeft = closeLocation[0]
+                        val closeTop = closeLocation[1]
+                        val closeRight = closeLeft + closeBtn.width
+                        val closeBottom = closeTop + closeBtn.height
+
+                        val rawX = event.rawX.toInt()
+                        val rawY = event.rawY.toInt()
+
+                        if (rawX in (closeLeft - dpToPx(10))..(closeRight + dpToPx(10)) &&
+                            rawY in (closeTop - dpToPx(10))..(closeBottom + dpToPx(10))) {
+                            stopSelf()
+                        } else {
+                            // Clicked pill body -> bring FocusNow to front
+                            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            if (launchIntent != null) startActivity(launchIntent)
                         }
-                        if (launchIntent != null) startActivity(launchIntent)
                     }
                     true
                 }
@@ -191,10 +311,13 @@ class FloatingFocusIslandService : Service() {
             }
         }
 
-        floatingView = container
         try {
-            windowManager?.addView(floatingView, params)
-        } catch (_: Exception) {}
+            windowManager?.addView(container, windowParams)
+            floatingView = container
+        } catch (e: Exception) {
+            e.printStackTrace()
+            floatingView = null
+        }
     }
 
     private fun startCountdown(appName: String, totalSeconds: Int) {
@@ -203,6 +326,11 @@ class FloatingFocusIslandService : Service() {
             override fun onTick(millisUntilFinished: Long) {
                 val remainingSeconds = (millisUntilFinished / 1000).toInt()
                 timerTextView?.text = formatTime(remainingSeconds)
+
+                // If overlay permission was granted while service is running, auto-attach pill
+                if (floatingView == null && Settings.canDrawOverlays(this@FloatingFocusIslandService)) {
+                    showFloatingPill(appName, remainingSeconds)
+                }
             }
 
             override fun onFinish() {
@@ -215,6 +343,7 @@ class FloatingFocusIslandService : Service() {
         val finishIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("TRIGGER_REGAIN_TIMES_UP", true)
+            putExtra("TIMES_UP_APP_NAME", appName)
             putExtra("LOCKED_APP_NAME", appName)
         }
         startActivity(finishIntent)

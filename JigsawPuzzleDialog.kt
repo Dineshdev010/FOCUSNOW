@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -53,17 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusflow.app.model.JigsawTheme
 import com.focusflow.app.model.PuzzleType
-import com.focusflow.app.ui.theme.CategoryStudy
-import com.focusflow.app.ui.theme.CategoryWork
-import com.focusflow.app.ui.theme.FocusAccent
-import com.focusflow.app.ui.theme.FocusAccentDark
-import com.focusflow.app.ui.theme.FocusAccentSoft
-import com.focusflow.app.ui.theme.FocusBackground
-import com.focusflow.app.ui.theme.FocusPanel
-import com.focusflow.app.ui.theme.FocusPanelBorder
-import com.focusflow.app.ui.theme.FocusPanelLight
-import com.focusflow.app.ui.theme.FocusSecondary
-import com.focusflow.app.ui.theme.FocusWhite
+import com.focusflow.app.ui.theme.*
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 import kotlin.random.Random
 
@@ -123,6 +115,8 @@ fun JigsawPuzzleDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.95f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -295,45 +289,53 @@ fun JigsawPuzzleDialog(
                     PuzzleType.PHOTO_JIGSAW -> {
                         RealPhotoJigsawPuzzleView(
                             viewModel = viewModel,
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.SLIDING_JIGSAW -> {
                         SlidingTilePuzzleView(
                             viewModel = viewModel,
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.FLOW_CONNECT -> {
                         ZenFlowConnectView(
                             viewModel = viewModel,
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.SUDOKU_MINI -> {
                         FocusSudokuView(
                             viewModel = viewModel,
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.MEMORY_MATCH -> {
                         MemoryCardMatchView(
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.WORD_UNSCRAMBLE -> {
                         WordUnscramblePuzzleView(
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.MATH_REFLEX -> {
                         MathReflexSprintView(
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                     PuzzleType.TYPING_TEST -> {
                         MindfulTypingSprintView(
-                            onSolved = { isOverallSolved = true }
+                            onSolved = { isOverallSolved = true },
+                            onReset = { isOverallSolved = false }
                         )
                     }
                 }
@@ -394,7 +396,8 @@ fun JigsawPuzzleDialog(
 @Composable
 private fun SlidingTilePuzzleView(
     viewModel: FocusFlowViewModel,
-    onSolved: () -> Unit
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     var gridSize by remember { mutableIntStateOf(3) } // 2 for Quick 2x2, 3 for Classic 3x3
@@ -405,8 +408,8 @@ private fun SlidingTilePuzzleView(
     var moveCount by remember { mutableIntStateOf(0) }
     var hasStarted by remember { mutableStateOf(false) }
 
-    val isSolved = remember(tiles, hasStarted) {
-        hasStarted && tiles == (0 until totalTiles).toList()
+    val isSolved = remember(tiles, hasStarted, moveCount) {
+        hasStarted && moveCount > 0 && tiles == (0 until totalTiles).toList()
     }
 
     LaunchedEffect(isSolved) {
@@ -438,6 +441,7 @@ private fun SlidingTilePuzzleView(
         tiles = current
         moveCount = 0
         hasStarted = true
+        onReset()
     }
 
     LaunchedEffect(gridSize) {
@@ -472,7 +476,12 @@ private fun SlidingTilePuzzleView(
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (gridSize == 2) FocusAccent.copy(alpha = 0.2f) else FocusPanelLight)
                         .border(1.dp, if (gridSize == 2) FocusAccent else FocusPanelBorder, RoundedCornerShape(10.dp))
-                        .clickable { gridSize = 2 }
+                        .clickable {
+                            if (gridSize != 2) {
+                                gridSize = 2
+                                onReset()
+                            }
+                        }
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text("2x2 Quick", color = if (gridSize == 2) FocusAccent else FocusSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -482,7 +491,12 @@ private fun SlidingTilePuzzleView(
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (gridSize == 3) FocusAccent.copy(alpha = 0.2f) else FocusPanelLight)
                         .border(1.dp, if (gridSize == 3) FocusAccent else FocusPanelBorder, RoundedCornerShape(10.dp))
-                        .clickable { gridSize = 3 }
+                        .clickable {
+                            if (gridSize != 3) {
+                                gridSize = 3
+                                onReset()
+                            }
+                        }
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text("3x3 Classic", color = if (gridSize == 3) FocusAccent else FocusSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -591,12 +605,16 @@ private fun SlidingTilePuzzleView(
  * 2. MEMORY CARD MATCH PUZZLE
  * ======================================================== */
 @Composable
-private fun MemoryCardMatchView(onSolved: () -> Unit) {
+private fun MemoryCardMatchView(
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
+) {
     val haptic = LocalHapticFeedback.current
     val icons = remember { listOf("🧘", "🌿", "💎", "⚡", "🪐", "☕") }
+    var deckSeed by remember { mutableStateOf(System.currentTimeMillis()) }
     // 6 pairs = 12 cards (4 columns x 3 rows)
-    val deck = remember {
-        (icons + icons).shuffled(Random(System.currentTimeMillis()))
+    val deck = remember(deckSeed) {
+        (icons + icons).shuffled(Random(deckSeed))
     }
     val revealed = remember { mutableStateListOf<Int>() }
     val matched = remember { mutableStateListOf<Int>() }
@@ -703,6 +721,8 @@ private fun MemoryCardMatchView(onSolved: () -> Unit) {
                 revealed.clear()
                 matched.clear()
                 flips = 0
+                deckSeed = System.currentTimeMillis()
+                onReset()
             },
             colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
             shape = RoundedCornerShape(12.dp),
@@ -717,7 +737,10 @@ private fun MemoryCardMatchView(onSolved: () -> Unit) {
  * 3. MINDFUL WORD UNSCRAMBLE PUZZLE
  * ======================================================== */
 @Composable
-private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
+private fun WordUnscramblePuzzleView(
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
+) {
     val haptic = LocalHapticFeedback.current
     val words = remember {
         listOf(
@@ -730,13 +753,18 @@ private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
         )
     }
 
-    var wordIndex by remember { mutableIntStateOf(0) }
+    var wordIndex by remember { mutableIntStateOf(Random.nextInt(words.size)) }
     val currentPair = words[wordIndex]
     val targetWord = currentPair.first
 
     // Shuffled letters
     var scrambledLetters by remember(wordIndex) {
-        mutableStateOf(targetWord.toList().shuffled(Random(wordIndex + 42)))
+        val chars = targetWord.toList()
+        var shuffled = chars.shuffled(Random(wordIndex + System.currentTimeMillis()))
+        if (shuffled == chars && chars.size > 1) {
+            shuffled = chars.reversed()
+        }
+        mutableStateOf(shuffled)
     }
     var currentAnswer by remember(wordIndex) { mutableStateOf("") }
     val isCorrect = currentAnswer == targetWord
@@ -751,7 +779,7 @@ private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Target Slots
+        // Target Slots (tap filled slot to remove letter)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
@@ -768,7 +796,11 @@ private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
                             1.5.dp,
                             if (isCorrect) FocusAccent else if (char.isNotEmpty()) FocusAccent.copy(alpha = 0.4f) else FocusPanelBorder,
                             RoundedCornerShape(10.dp)
-                        ),
+                        )
+                        .clickable(enabled = char.isNotEmpty() && !isCorrect) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            currentAnswer = currentAnswer.removeRange(i, i + 1)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(char, color = if (isCorrect) FocusAccent else FocusWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -795,7 +827,7 @@ private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (isUsed) FocusPanel.copy(alpha = 0.4f) else FocusPanelLight)
                         .border(1.dp, if (isUsed) Color.Transparent else FocusAccent.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
-                        .clickable(!isUsed) {
+                        .clickable(!isUsed && !isCorrect) {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             currentAnswer += ch
                         },
@@ -808,13 +840,37 @@ private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        Button(
-            onClick = { currentAnswer = "" },
-            colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().height(42.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("⌫ Clear Letters", color = FocusSecondary, fontSize = 11.sp)
+            Button(
+                onClick = {
+                    if (currentAnswer.isNotEmpty()) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        currentAnswer = currentAnswer.dropLast(1)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f).height(42.dp)
+            ) {
+                Text("⌫ Back", color = FocusWhite, fontSize = 11.sp)
+            }
+
+            Button(
+                onClick = {
+                    wordIndex = (wordIndex + 1) % words.size
+                    currentAnswer = ""
+                    onReset()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f).height(42.dp)
+            ) {
+                Text("Next Word 🔀", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -822,21 +878,67 @@ private fun WordUnscramblePuzzleView(onSolved: () -> Unit) {
 /* ========================================================
  * 4. MATH REFLEX SPRINT PUZZLE
  * ======================================================== */
-@Composable
-private fun MathReflexSprintView(onSolved: () -> Unit) {
-    val haptic = LocalHapticFeedback.current
-    data class MathItem(val question: String, val options: List<Int>, val answer: Int)
+private data class MathSprintItem(val question: String, val options: List<Int>, val answer: Int)
 
-    val problems = remember {
-        listOf(
-            MathItem("14 + 19 = ?", listOf(31, 33, 35, 29), 33),
-            MathItem("8 × 7 = ?", listOf(54, 56, 48, 62), 56),
-            MathItem("52 - 18 = ?", listOf(34, 32, 36, 44), 34)
-        )
+private fun generateMathSprintProblems(): List<MathSprintItem> {
+    val rng = java.util.Random()
+    val list = mutableListOf<MathSprintItem>()
+
+    // Problem 1: Addition (two 2-digit numbers)
+    val a1 = rng.nextInt(35) + 14
+    val b1 = rng.nextInt(35) + 12
+    val ans1 = a1 + b1
+    val opts1 = mutableSetOf(ans1)
+    var attempts = 0
+    while (opts1.size < 4 && attempts++ < 30) {
+        val delta = (rng.nextInt(6) + 1) * if (rng.nextBoolean()) 1 else -1
+        val delta10 = if (rng.nextBoolean()) 10 else 0
+        val distractor = ans1 + delta + delta10
+        if (distractor > 0) opts1.add(distractor)
     }
+    list.add(MathSprintItem("$a1 + $b1 = ?", opts1.toList().shuffled(), ans1))
 
-    var step by remember { mutableIntStateOf(0) }
-    var streak by remember { mutableIntStateOf(0) }
+    // Problem 2: Multiplication (mental math times table)
+    val a2 = rng.nextInt(7) + 6 // 6..12
+    val b2 = rng.nextInt(7) + 4 // 4..10
+    val ans2 = a2 * b2
+    val opts2 = mutableSetOf(ans2)
+    attempts = 0
+    while (opts2.size < 4 && attempts++ < 30) {
+        val delta = if (rng.nextBoolean()) a2 else (rng.nextInt(4) + 1) * 2
+        val distractor = if (rng.nextBoolean()) ans2 + delta else (ans2 - delta).coerceAtLeast(12)
+        opts2.add(distractor)
+    }
+    list.add(MathSprintItem("$a2 × $b2 = ?", opts2.toList().shuffled(), ans2))
+
+    // Problem 3: Subtraction (2-digit minus 2-digit)
+    val a3 = rng.nextInt(45) + 45 // 45..89
+    val b3 = rng.nextInt(25) + 14 // 14..38
+    val ans3 = a3 - b3
+    val opts3 = mutableSetOf(ans3)
+    attempts = 0
+    while (opts3.size < 4 && attempts++ < 30) {
+        val delta = (rng.nextInt(6) + 1) * if (rng.nextBoolean()) 1 else -1
+        val distractor = ans3 + delta
+        if (distractor > 0) opts3.add(distractor)
+    }
+    list.add(MathSprintItem("$a3 - $b3 = ?", opts3.toList().shuffled(), ans3))
+
+    return list
+}
+
+@Composable
+private fun MathReflexSprintView(
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
+) {
+    val haptic = LocalHapticFeedback.current
+    var sprintSeed by remember { mutableIntStateOf(0) }
+    val problems = remember(sprintSeed) { generateMathSprintProblems() }
+
+    var step by remember(sprintSeed) { mutableIntStateOf(0) }
+    var streak by remember(sprintSeed) { mutableIntStateOf(0) }
+    var wrongOptionSelected by remember(sprintSeed, step) { mutableStateOf<Int?>(null) }
     val isComplete = streak >= problems.size
 
     LaunchedEffect(isComplete) {
@@ -851,8 +953,8 @@ private fun MathReflexSprintView(onSolved: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Equation ${step + 1} of 3", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("Sprint Streak: $streak/3", color = FocusSecondary, fontSize = 12.sp)
+            Text("Equation ${step + 1} of ${problems.size}", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Sprint Streak: $streak/${problems.size}", color = FocusSecondary, fontSize = 12.sp)
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -878,52 +980,98 @@ private fun MathReflexSprintView(onSolved: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     for (c in 0..1) {
-                        val opt = currentProblem.options[r * 2 + c]
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(FocusPanel)
-                                .border(1.dp, FocusPanelBorder, RoundedCornerShape(14.dp))
-                                .clickable {
-                                    if (opt == currentProblem.answer) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        streak++
-                                        if (step < problems.size - 1) {
-                                            step++
+                        val index = r * 2 + c
+                        if (index < currentProblem.options.size) {
+                            val opt = currentProblem.options[index]
+                            val isWrong = wrongOptionSelected == opt
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (isWrong) PriorityHigh.copy(alpha = 0.2f) else FocusPanel)
+                                    .border(
+                                        1.5.dp,
+                                        if (isWrong) PriorityHigh else FocusPanelBorder,
+                                        RoundedCornerShape(14.dp)
+                                    )
+                                    .clickable {
+                                        if (opt == currentProblem.answer) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            wrongOptionSelected = null
+                                            streak++
+                                            if (step < problems.size - 1) {
+                                                step++
+                                            } else {
+                                                onSolved()
+                                            }
                                         } else {
-                                            onSolved()
+                                            wrongOptionSelected = opt
+                                            haptic.performHapticFeedback(HapticFeedbackType.Reject)
                                         }
-                                    } else {
-                                        haptic.performHapticFeedback(HapticFeedbackType.Reject)
                                     }
-                                }
-                                .padding(vertical = 14.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("$opt", color = FocusWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    .padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$opt",
+                                    color = if (isWrong) PriorityHigh else FocusWhite,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
+        Spacer(modifier = Modifier.height(14.dp))
 
+        Button(
+            onClick = {
+                sprintSeed++
+                onReset()
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(40.dp)
+        ) {
+            Text("New Equations 🔄", color = FocusSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
 @Composable
-fun MindfulTypingSprintView(onSolved: () -> Unit) {
+fun MindfulTypingSprintView(
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
+) {
     val haptic = LocalHapticFeedback.current
-    val quotes = listOf(
-        "I choose deep focus over endless distractions.",
-        "My attention is my most valuable superpower.",
-        "Silence the noise and conquer the day."
-    )
+    val quotes = remember {
+        listOf(
+            "I choose deep focus over endless distractions.",
+            "My attention is my most valuable superpower.",
+            "Silence the noise and conquer the day.",
+            "Discipline is choosing between what you want now and what you want most.",
+            "One mindful breath at a time restores my clarity.",
+            "Focus is a muscle that grows stronger with every temptation resisted."
+        )
+    }
     var quoteIndex by remember { mutableIntStateOf(0) }
     val targetQuote = quotes[quoteIndex]
     var typedText by remember { mutableStateOf("") }
-    val isMatch = typedText.trim().equals(targetQuote.trim(), ignoreCase = true)
+
+    fun normalizeText(s: String): String {
+        return s.trim()
+            .replace("“", "\"").replace("”", "\"")
+            .replace("’", "'").replace("‘", "'")
+            .replace("\\s+".toRegex(), " ")
+            .removeSuffix(".")
+            .lowercase()
+    }
+
+    val isMatch = normalizeText(typedText) == normalizeText(targetQuote)
 
     LaunchedEffect(isMatch) {
         if (isMatch) {
@@ -939,8 +1087,9 @@ fun MindfulTypingSprintView(onSolved: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Mindful Affirmation", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            val matchPercent = if (isMatch) 100 else ((typedText.length.toFloat() / targetQuote.length.toFloat()) * 100).toInt().coerceIn(0, 99)
             Text(
-                "Match: ${if (isMatch) "100% ✓" else "${(typedText.length * 100 / targetQuote.length).coerceAtMost(99)}%"}",
+                "Match: ${if (isMatch) "100% ✓" else "$matchPercent%"}",
                 color = if (isMatch) FocusAccent else FocusSecondary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
@@ -954,7 +1103,7 @@ fun MindfulTypingSprintView(onSolved: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(FocusPanelLight, RoundedCornerShape(16.dp))
-                .border(1.5.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                .border(1.5.dp, if (isMatch) FocusAccent else FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                 .padding(16.dp)
         ) {
             Text(
@@ -972,16 +1121,17 @@ fun MindfulTypingSprintView(onSolved: () -> Unit) {
         // Typing Field
         androidx.compose.material3.OutlinedTextField(
             value = typedText,
-            onValueChange = {
-                typedText = it
-                if (it.trim().equals(targetQuote.trim(), ignoreCase = true)) {
+            onValueChange = { input ->
+                typedText = input
+                if (normalizeText(input) == normalizeText(targetQuote)) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onSolved()
                 }
             },
             placeholder = { Text("Type the quote above...", color = FocusSecondary, fontSize = 13.sp) },
             colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = FocusAccent,
-                unfocusedBorderColor = FocusPanelBorder,
+                focusedBorderColor = if (isMatch) FocusAccent else FocusAccent.copy(alpha = 0.8f),
+                unfocusedBorderColor = if (isMatch) FocusAccent else FocusPanelBorder,
                 focusedTextColor = FocusWhite,
                 unfocusedTextColor = FocusWhite,
                 focusedContainerColor = FocusPanel,
@@ -999,6 +1149,8 @@ fun MindfulTypingSprintView(onSolved: () -> Unit) {
             onClick = {
                 quoteIndex = (quoteIndex + 1) % quotes.size
                 typedText = ""
+                onReset()
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             },
             colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
             shape = RoundedCornerShape(12.dp),

@@ -73,7 +73,7 @@ fun TasksScreen(viewModel: FocusFlowViewModel) {
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Header with "+ New Task" Action Button
         Row(
@@ -395,6 +395,6 @@ fun TasksScreen(viewModel: FocusFlowViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(135.dp))
+        Spacer(modifier = Modifier.height(44.dp))
     }
 }

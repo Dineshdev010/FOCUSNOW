@@ -1,5 +1,6 @@
 package com.focusflow.app.ui.screens
 
+import android.app.TimePickerDialog
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,8 +15,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -69,6 +72,8 @@ fun SleepTrackerDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.96f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -280,6 +285,41 @@ fun SleepTrackerDialog(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
+                                }
+
+                                val isCustomBedtime = !listOf(
+                                    Pair(22, 0), Pair(22, 30), Pair(23, 0), Pair(23, 30)
+                                ).contains(Pair(sleepState.curfewStartHour, sleepState.curfewStartMinute))
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isCustomBedtime) androidx.compose.ui.graphics.Color(0xFF8B5CF6) else FocusPanel)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            TimePickerDialog(
+                                                context,
+                                                { _, hourOfDay, minute ->
+                                                    viewModel.updateBedtimeCurfewTimes(
+                                                        hourOfDay,
+                                                        minute,
+                                                        sleepState.curfewEndHour,
+                                                        sleepState.curfewEndMinute
+                                                    )
+                                                },
+                                                sleepState.curfewStartHour,
+                                                sleepState.curfewStartMinute,
+                                                false
+                                            ).show()
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = if (isCustomBedtime) "${sleepState.formattedCurfewRange().split("–")[0].trim()} ✏️" else "Custom 🕒",
+                                        color = if (isCustomBedtime) FocusWhite else FocusSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCustomBedtime) FontWeight.Bold else FontWeight.Normal
+                                    )
                                 }
                             }
                         }

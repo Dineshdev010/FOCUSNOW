@@ -67,7 +67,7 @@ data class HabitItem(
     fun isCompletedOnDate(dateStr: String): Boolean = completedDates.contains(dateStr)
     val isCompletedToday: Boolean
         get() {
-            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             return completedDates.contains(todayStr)
         }
 }

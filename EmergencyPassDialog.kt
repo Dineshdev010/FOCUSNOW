@@ -8,8 +8,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,6 +79,8 @@ fun EmergencyPassDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.95f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -85,6 +89,7 @@ fun EmergencyPassDialog(
             shape = RoundedCornerShape(26.dp),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.90f)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -93,6 +98,8 @@ fun EmergencyPassDialog(
         ) {
             Column(
                 modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

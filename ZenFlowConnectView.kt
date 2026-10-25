@@ -64,7 +64,8 @@ data class FlowTerminal(
 @Composable
 fun ZenFlowConnectView(
     viewModel: FocusFlowViewModel,
-    onSolved: () -> Unit
+    onSolved: () -> Unit,
+    onReset: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val gridSize = 4
@@ -121,6 +122,7 @@ fun ZenFlowConnectView(
         activeColorId = null
         activePath.clear()
         isVictory = false
+        onReset()
     }
 
     Column(
@@ -302,46 +304,7 @@ fun ZenFlowConnectView(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // VICTORY CARD OR CONTROLS
-        AnimatedVisibility(visible = isVictory) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = FocusAccentSoft),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.5.dp, FocusAccent, RoundedCornerShape(16.dp))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("⚡ FLOW STATE UNLOCKED!", color = FocusAccent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "All circuits connected! Mind clarity +100%. +20 Coins 🪙",
-                        color = FocusWhite,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Button(
-                        onClick = {
-                            viewModel.onJigsawPuzzleSolved()
-                            onSolved()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            if (viewModel.puzzleSolvedCallback != null) "Unlock 5-Min Time Pass ⏱️" else "Claim 5-Min Break ⏱️",
-                            color = FocusBackground,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(10.dp))
 
         if (!isVictory) {
             Button(

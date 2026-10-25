@@ -13,8 +13,17 @@ data class BlockedApp(
     val iconEmoji: String,
     val isBlocked: Boolean = true,
     val dailyLimitMinutes: Int = 15,
-    val usedMinutesToday: Int = 7,
-    val opensToday: Int = 0
+    val usedMinutesToday: Int = 0,
+    val opensToday: Int = 0,
+    val maxOpensPerDay: Int = 20,
+    val isHardLock: Boolean = false
+)
+
+data class CategoryBudget(
+    val category: String,
+    val emoji: String,
+    val dailyLimitMinutes: Int = 60,
+    val isEnabled: Boolean = true
 )
 
 data class FocusSchedule(
@@ -26,7 +35,13 @@ data class FocusSchedule(
     val endHour: Int,
     val endMinute: Int,
     val daysSummary: String = "Mon - Fri",
-    val isEnabled: Boolean = true
+    val isEnabled: Boolean = true,
+    val blockedCategory: String = "All Distractions",
+    val isStrictLock: Boolean = false,
+    val targetAppPackages: List<String> = emptyList(),
+    val isAlarmEnabled: Boolean = true,
+    val alarmSound: String = "Zen Gong",
+    val isVibrateEnabled: Boolean = true
 ) {
     fun isCurrentlyActive(): Boolean {
         if (!isEnabled) return false
@@ -40,6 +55,15 @@ data class FocusSchedule(
         } else {
             // Over midnight
             currentMins >= startMins || currentMins <= endMins
+        }
+    }
+
+    fun shouldBlockPackage(pkg: String): Boolean {
+        if (!isEnabled || !isCurrentlyActive()) return false
+        return if (targetAppPackages.isNotEmpty()) {
+            targetAppPackages.contains(pkg)
+        } else {
+            true // default to blocking all specified distraction apps
         }
     }
 
@@ -747,4 +771,14 @@ enum class FrictionTier(val label: String, val badge: String, val description: S
 data class ProgressiveFrictionStatus(
     val passesUsedToday: Int,
     val currentTier: FrictionTier
+)
+
+data class AlwaysAllowedAppItem(
+    val id: String,
+    val name: String,
+    val packageName: String,
+    val iconEmoji: String,
+    val category: String,
+    val isAlwaysAllowed: Boolean,
+    val isEssential: Boolean = false
 )

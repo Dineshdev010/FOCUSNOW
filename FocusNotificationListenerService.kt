@@ -61,8 +61,13 @@ class FocusNotificationListenerService : NotificationListenerService() {
             return
         }
 
-        // 6. Never silence user-whitelisted productive apps or work apps in Work Mode (Teams, Outlook, WhatsApp, Slack, etc.)
-        if (repository.isProductiveAppAllowed(pkg) || (repository.isWorkModeActive() && repository.isWorkAppAllowed(pkg))) {
+        // 5b. Never silence educational & learning apps (Duolingo study reminders, etc.)
+        if (repository.isEducationalApp(pkg)) {
+            return
+        }
+
+        // 6. Never silence office apps, workspace notifications, or productive apps
+        if (repository.isOfficeOrWorkspaceApp(pkg) || repository.isProductiveAppAllowed(pkg) || repository.isWorkAppAllowed(pkg)) {
             return
         }
 

@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -58,6 +60,8 @@ fun ReelsBlockerDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.95f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -218,53 +222,86 @@ fun ReelsBlockerDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Toggle 1: Instagram Reels
-                ReelsBlockItem(
-                    emoji = "\uD83D\uDCF8",
-                    title = "Block Instagram Reels",
-                    subtitle = "Blocks Reels feed, keeps DMs & posts open",
-                    checked = config.blockInstagramReels,
-                    onCheckedChange = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.toggleReelsBlocker(it)
+                val hasInstagram = remember { viewModel.isPackageInstalled("com.instagram.android") }
+                val hasYouTube = remember { viewModel.isPackageInstalled("com.google.android.youtube") }
+                val hasSnapchat = remember { viewModel.isPackageInstalled("com.snapchat.android") }
+
+                if (!hasInstagram && !hasYouTube && !hasSnapchat) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(FocusPanelLight, RoundedCornerShape(12.dp))
+                            .padding(14.dp)
+                    ) {
+                        Column {
+                            Text(
+                                "\u2728 Video Apps Not Installed",
+                                color = FocusWhite,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "No short-form video apps are installed on your phone. Web doomscrolling defense is active below.",
+                                color = FocusSecondary,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                        }
                     }
-                )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                if (hasInstagram) {
+                    // Toggle 1: Instagram Reels
+                    ReelsBlockItem(
+                        emoji = "\uD83D\uDCF8",
+                        title = "Block Instagram Reels",
+                        subtitle = "Blocks Reels feed, keeps DMs & posts open",
+                        checked = config.blockInstagramReels,
+                        onCheckedChange = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.toggleReelsBlocker(it)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-                // Toggle 2: YouTube Shorts
-                ReelsBlockItem(
-                    emoji = "\u25B6\uFE0F",
-                    title = "Block YouTube Shorts",
-                    subtitle = "Filters algorithmic shorts, keeps study videos",
-                    checked = config.blockYouTubeShorts,
-                    onCheckedChange = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.toggleShortsBlocker(it)
-                    }
-                )
+                if (hasYouTube) {
+                    // Toggle 2: YouTube Shorts
+                    ReelsBlockItem(
+                        emoji = "\u25B6\uFE0F",
+                        title = "Block YouTube Shorts",
+                        subtitle = "Filters algorithmic shorts, keeps study videos",
+                        checked = config.blockYouTubeShorts,
+                        onCheckedChange = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.toggleShortsBlocker(it)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Toggle 3: Snapchat Spotlight
-                ReelsBlockItem(
-                    emoji = "\uD83D\uDC7B",
-                    title = "Block Snapchat Spotlight",
-                    subtitle = "Eliminates endless swipe video tab",
-                    checked = config.blockSnapchatSpotlight,
-                    onCheckedChange = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.toggleSpotlightBlocker(it)
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
+                if (hasSnapchat) {
+                    // Toggle 3: Snapchat Spotlight
+                    ReelsBlockItem(
+                        emoji = "\uD83D\uDC7B",
+                        title = "Block Snapchat Spotlight",
+                        subtitle = "Eliminates endless swipe video tab",
+                        checked = config.blockSnapchatSpotlight,
+                        onCheckedChange = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.toggleSpotlightBlocker(it)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 // Toggle 4: Web Doomscrolling
                 ReelsBlockItem(
                     emoji = "\uD83C\uDF10",
                     title = "Block Web Doomscrolling",
-                    subtitle = "Blocks instagram.com & web feeds (browsers stay open)",
+                    subtitle = "Blocks short-form web feeds (browsers stay open)",
                     checked = config.blockWebDoomscrolling,
                     onCheckedChange = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -275,10 +312,16 @@ fun ReelsBlockerDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Test Shield Interception Button
+                val simulationTarget = when {
+                    hasInstagram -> "Instagram Reels"
+                    hasYouTube -> "YouTube Shorts"
+                    hasSnapchat -> "Snapchat Spotlight"
+                    else -> "Web Doomscrolling"
+                }
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.testMindfulIntervention("Instagram Reels")
+                        viewModel.testMindfulIntervention(simulationTarget)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
                     shape = RoundedCornerShape(12.dp),

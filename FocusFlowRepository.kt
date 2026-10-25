@@ -30,6 +30,36 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putString(KEY_USER_GOAL, goal).apply()
     }
 
+    // User Profile
+    fun getUserName(): String = prefs.getString(KEY_USER_NAME, "Dinesh") ?: "Dinesh"
+
+    fun setUserName(name: String) {
+        prefs.edit().putString(KEY_USER_NAME, name).apply()
+    }
+
+    fun getUserBio(): String = prefs.getString(KEY_USER_BIO, "Conquering distractions & mastering flow") ?: "Conquering distractions & mastering flow"
+
+    fun setUserBio(bio: String) {
+        prefs.edit().putString(KEY_USER_BIO, bio).apply()
+    }
+
+    fun getUserAvatar(): String = prefs.getString(KEY_USER_AVATAR, "⚡") ?: "⚡"
+
+    fun setUserAvatar(avatar: String) {
+        prefs.edit().putString(KEY_USER_AVATAR, avatar).apply()
+    }
+
+    fun getUserJoinedDate(): String {
+        var date = prefs.getString(KEY_USER_JOINED_DATE, null)
+        if (date == null) {
+            val nowCal = Calendar.getInstance()
+            val month = SimpleDateFormat("MMMM yyyy", Locale.US).format(nowCal.time)
+            date = "Joined $month"
+            prefs.edit().putString(KEY_USER_JOINED_DATE, date).apply()
+        }
+        return date
+    }
+
     // PIN Security with SHA-256 Hashing
     fun hashPin(pin: String): String {
         return try {
@@ -222,20 +252,65 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putString(KEY_SOUNDSCAPE, soundscape.name).apply()
     }
 
+    private var cachedLauncherMap: Map<String, String>? = null
+
+    fun getInstalledLauncherPackagesMap(forceRefresh: Boolean = false): Map<String, String> {
+        if (!forceRefresh) {
+            cachedLauncherMap?.let { return it }
+        }
+        val pm = context.packageManager
+        val launcherIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null).apply {
+            addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        }
+        val map = mutableMapOf<String, String>()
+        try {
+            val resolveList = pm.queryIntentActivities(launcherIntent, 0)
+            for (info in resolveList) {
+                val pkg = info.activityInfo?.packageName ?: continue
+                if (pkg != context.packageName) {
+                    val label = info.loadLabel(pm)?.toString() ?: pkg
+                    map[pkg] = label
+                }
+            }
+        } catch (_: Exception) {}
+        cachedLauncherMap = map
+        return map
+    }
+
+    fun isPackageInstalled(packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        val launcher = getInstalledLauncherPackagesMap()
+        if (launcher.containsKey(packageName)) return true
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     // Blocked Apps
     fun getBlockedApps(): List<BlockedApp> {
         val json = prefs.getString(KEY_BLOCKED_APPS, null)
+        val launcherMap = getInstalledLauncherPackagesMap()
         if (json != null) {
             try {
                 val array = JSONArray(json)
                 val list = mutableListOf<BlockedApp>()
-                var needsMigration = false
+                var hadUninstalled = false
                 for (i in 0 until array.length()) {
                     val obj = array.getJSONObject(i)
                     val pkg = obj.optString("packageName", "com.unknown.app")
+                    // STRICT CHECK: Skip any app not installed on the user's phone!
+                    if (!launcherMap.containsKey(pkg) && !isPackageInstalled(pkg)) {
+                        hadUninstalled = true
+                        continue
+                    }
                     val origBlocked = obj.optBoolean("isBlocked", true)
-                    // YouTube whole-app block is driven by user shield rule, while Shorts is intercepted via short-form blocker
-                    val isBlocked = if (pkg == "com.google.android.youtube") {
+                    // Educational apps are permanently immune, YouTube whole-app block is driven by user shield rule, while Shorts is intercepted via short-form blocker
+                    val isBlocked = if (isEducationalApp(pkg)) {
+                        false
+                    } else if (pkg == "com.google.android.youtube") {
                         isPackageInBlockedSet("com.google.android.youtube")
                     } else origBlocked
                     list.add(
@@ -246,20 +321,30 @@ class FocusFlowRepository(private val context: Context) {
                             iconEmoji = obj.getString("iconEmoji"),
                             isBlocked = isBlocked,
                             dailyLimitMinutes = obj.optInt("dailyLimitMinutes", 15),
-                            usedMinutesToday = obj.optInt("usedMinutesToday", 8),
-                            opensToday = obj.optInt("opensToday", 0)
+                            usedMinutesToday = obj.optInt("usedMinutesToday", 0),
+                            opensToday = obj.optInt("opensToday", 0),
+                            maxOpensPerDay = obj.optInt("maxOpensPerDay", 20),
+                            isHardLock = obj.optBoolean("isHardLock", false)
                         )
                     )
                 }
-                if (needsMigration) {
-                    saveBlockedApps(list)
+                if (hadUninstalled || list.isEmpty()) {
+                    if (list.isEmpty()) {
+                        val fresh = defaultBlockedApps()
+                        saveBlockedApps(fresh)
+                        return fresh
+                    } else {
+                        saveBlockedApps(list)
+                    }
                 }
                 return list
             } catch (e: Exception) {
                 // fallback
             }
         }
-        return defaultBlockedApps()
+        val defaults = defaultBlockedApps()
+        saveBlockedApps(defaults)
+        return defaults
     }
 
     fun saveBlockedApps(apps: List<BlockedApp>) {
@@ -274,17 +359,41 @@ class FocusFlowRepository(private val context: Context) {
                 put("dailyLimitMinutes", app.dailyLimitMinutes)
                 put("usedMinutesToday", app.usedMinutesToday)
                 put("opensToday", app.opensToday)
+                put("maxOpensPerDay", app.maxOpensPerDay)
+                put("isHardLock", app.isHardLock)
             }
             array.put(obj)
         }
         prefs.edit().putString(KEY_BLOCKED_APPS, array.toString()).apply()
     }
 
-    fun updateAppDailyLimit(packageName: String, limitMinutes: Int) {
+    fun updateAppDailyLimit(packageName: String, limitMinutes: Int, maxOpens: Int = 20, isHardLock: Boolean = false) {
         val apps = getBlockedApps().map {
-            if (it.packageName == packageName) it.copy(dailyLimitMinutes = limitMinutes) else it
+            if (it.packageName == packageName) {
+                it.copy(
+                    dailyLimitMinutes = limitMinutes,
+                    maxOpensPerDay = maxOpens,
+                    isHardLock = isHardLock
+                )
+            } else it
         }
         saveBlockedApps(apps)
+    }
+
+    fun addOrUpdateBlockedApp(app: BlockedApp) {
+        val current = getBlockedApps().toMutableList()
+        val index = current.indexOfFirst { it.packageName == app.packageName }
+        if (index >= 0) {
+            current[index] = app
+        } else {
+            current.add(app)
+        }
+        saveBlockedApps(current)
+    }
+
+    fun removeBlockedApp(packageName: String) {
+        val current = getBlockedApps().filterNot { it.packageName == packageName }
+        saveBlockedApps(current)
     }
 
     fun recordAppOpen(packageName: String) {
@@ -294,14 +403,65 @@ class FocusFlowRepository(private val context: Context) {
         saveBlockedApps(apps)
     }
 
-    private fun defaultBlockedApps(): List<BlockedApp> = listOf(
-        BlockedApp("Instagram", "com.instagram.android", "Social Media", "\uD83D\uDCF8", isBlocked = true, dailyLimitMinutes = 15, usedMinutesToday = 8, opensToday = 7),
-        BlockedApp("YouTube", "com.google.android.youtube", "Video", "\u25B6\uFE0F", isBlocked = false, dailyLimitMinutes = 60, usedMinutesToday = 14, opensToday = 4),
-        BlockedApp("TikTok / Reels", "com.zhiliaoapp.musically", "Short Video", "\uD83C\uDFB5", isBlocked = true, dailyLimitMinutes = 10, usedMinutesToday = 6, opensToday = 3),
-        BlockedApp("Twitter / X", "com.twitter.android", "Social Media", "\uD83D\uDC26", isBlocked = true, dailyLimitMinutes = 15, usedMinutesToday = 12, opensToday = 2),
-        BlockedApp("Reddit", "com.reddit.frontpage", "Community", "\uD83E\uDD16", isBlocked = true, dailyLimitMinutes = 20, usedMinutesToday = 5, opensToday = 5),
-        BlockedApp("Snapchat", "com.snapchat.android", "Social Media", "\uD83D\uDC7B", isBlocked = true, dailyLimitMinutes = 15, usedMinutesToday = 4, opensToday = 2)
-    )
+    fun syncBlockedAppsUsageWithRealStats(stats: List<com.focusflow.app.util.AppUsageStat>) {
+        if (stats.isEmpty()) return
+        val statsMap = stats.associateBy { it.packageName }
+        val apps = getBlockedApps().map { app ->
+            val stat = statsMap[app.packageName]
+            if (stat != null) {
+                app.copy(usedMinutesToday = stat.minutesToday.toInt())
+            } else {
+                app
+            }
+        }
+        saveBlockedApps(apps)
+    }
+
+    private fun defaultBlockedApps(): List<BlockedApp> {
+        val installedMap = getInstalledLauncherPackagesMap()
+        val popularCandidates = listOf(
+            BlockedApp("Instagram", "com.instagram.android", "Social Media", "\uD83D\uDCF8", isBlocked = true, dailyLimitMinutes = 20),
+            BlockedApp("YouTube", "com.google.android.youtube", "Video", "\u25B6\uFE0F", isBlocked = false, dailyLimitMinutes = 60),
+            BlockedApp("TikTok / Reels", "com.zhiliaoapp.musically", "Short Video", "\uD83C\uDFB5", isBlocked = true, dailyLimitMinutes = 15),
+            BlockedApp("Twitter / X", "com.twitter.android", "Social Media", "\uD83D\uDC26", isBlocked = true, dailyLimitMinutes = 20),
+            BlockedApp("Reddit", "com.reddit.frontpage", "Community", "\uD83E\uDD16", isBlocked = true, dailyLimitMinutes = 20),
+            BlockedApp("Snapchat", "com.snapchat.android", "Social Media", "\uD83D\uDC7B", isBlocked = true, dailyLimitMinutes = 15),
+            BlockedApp("Facebook", "com.facebook.katana", "Social Media", "\uD83D\uDCD8", isBlocked = true, dailyLimitMinutes = 20),
+            BlockedApp("Netflix", "com.netflix.mediaclient", "Entertainment", "\uD83C\uDFAC", isBlocked = true, dailyLimitMinutes = 45),
+            BlockedApp("Chrome Browser", "com.android.chrome", "Web Browser", "\uD83C\uDF10", isBlocked = false, dailyLimitMinutes = 45)
+        )
+
+        // STRICT FILTER: Only return apps that are ACTUALLY installed on the user's phone!
+        val installedPopular = popularCandidates.filter { installedMap.containsKey(it.packageName) }
+        if (installedPopular.isNotEmpty()) {
+            return installedPopular
+        }
+
+        // If none of the popular distractions are installed, discover installed launcher apps
+        val detected = mutableListOf<BlockedApp>()
+        for ((pkg, label) in installedMap) {
+            if (isOfficeOrWorkspaceApp(pkg) || isEducationalApp(pkg)) continue
+            val emoji = when {
+                label.contains("browser", true) || pkg.contains("chrome") -> "\uD83C\uDF10"
+                label.contains("game", true) -> "\uD83C\uDFAE"
+                label.contains("music", true) -> "\uD83C\uDFB5"
+                label.contains("video", true) -> "\uD83C\uDFAC"
+                else -> "\uD83D\uDCF1"
+            }
+            detected.add(
+                BlockedApp(
+                    name = label,
+                    packageName = pkg,
+                    category = "Installed Apps",
+                    iconEmoji = emoji,
+                    isBlocked = true,
+                    dailyLimitMinutes = 30
+                )
+            )
+            if (detected.size >= 4) break
+        }
+        return detected
+    }
 
     // Focus Schedules
     fun getFocusSchedules(): List<FocusSchedule> {
@@ -312,6 +472,16 @@ class FocusFlowRepository(private val context: Context) {
                 val list = mutableListOf<FocusSchedule>()
                 for (i in 0 until array.length()) {
                     val obj = array.getJSONObject(i)
+                    val appsArray = obj.optJSONArray("targetAppPackages")
+                    val targetApps = mutableListOf<String>()
+                    if (appsArray != null) {
+                        for (j in 0 until appsArray.length()) {
+                            val targetPkg = appsArray.getString(j)
+                            if (isPackageInstalled(targetPkg)) {
+                                targetApps.add(targetPkg)
+                            }
+                        }
+                    }
                     list.add(
                         FocusSchedule(
                             id = obj.getString("id"),
@@ -322,7 +492,13 @@ class FocusFlowRepository(private val context: Context) {
                             endHour = obj.getInt("endHour"),
                             endMinute = obj.getInt("endMinute"),
                             daysSummary = obj.optString("daysSummary", "Mon - Fri"),
-                            isEnabled = obj.optBoolean("isEnabled", true)
+                            isEnabled = obj.optBoolean("isEnabled", true),
+                            blockedCategory = obj.optString("blockedCategory", "All Distractions"),
+                            isStrictLock = obj.optBoolean("isStrictLock", false),
+                            targetAppPackages = targetApps,
+                            isAlarmEnabled = obj.optBoolean("isAlarmEnabled", true),
+                            alarmSound = obj.optString("alarmSound", "Zen Gong"),
+                            isVibrateEnabled = obj.optBoolean("isVibrateEnabled", true)
                         )
                     )
                 }
@@ -345,10 +521,25 @@ class FocusFlowRepository(private val context: Context) {
                 put("endMinute", s.endMinute)
                 put("daysSummary", s.daysSummary)
                 put("isEnabled", s.isEnabled)
+                put("blockedCategory", s.blockedCategory)
+                put("isStrictLock", s.isStrictLock)
+                val appsArr = JSONArray()
+                s.targetAppPackages.forEach { appsArr.put(it) }
+                put("targetAppPackages", appsArr)
+                put("isAlarmEnabled", s.isAlarmEnabled)
+                put("alarmSound", s.alarmSound)
+                put("isVibrateEnabled", s.isVibrateEnabled)
             }
             array.put(obj)
         }
         prefs.edit().putString(KEY_FOCUS_SCHEDULES, array.toString()).apply()
+    }
+
+    fun updateFocusSchedule(schedule: FocusSchedule) {
+        val current = getFocusSchedules().map {
+            if (it.id == schedule.id) schedule else it
+        }
+        saveFocusSchedules(current)
     }
 
     fun toggleFocusSchedule(id: String) {
@@ -369,6 +560,57 @@ class FocusFlowRepository(private val context: Context) {
         saveFocusSchedules(current)
     }
 
+    // Category Shared Screen Time Budgets
+    fun getCategoryBudgets(): List<CategoryBudget> {
+        val json = prefs.getString(KEY_CATEGORY_BUDGETS, null)
+        if (json != null) {
+            try {
+                val array = JSONArray(json)
+                val list = mutableListOf<CategoryBudget>()
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    list.add(
+                        CategoryBudget(
+                            category = obj.getString("category"),
+                            emoji = obj.optString("emoji", "📱"),
+                            dailyLimitMinutes = obj.optInt("dailyLimitMinutes", 60),
+                            isEnabled = obj.optBoolean("isEnabled", true)
+                        )
+                    )
+                }
+                return list
+            } catch (_: Exception) {}
+        }
+        return defaultCategoryBudgets()
+    }
+
+    fun saveCategoryBudgets(budgets: List<CategoryBudget>) {
+        val array = JSONArray()
+        for (b in budgets) {
+            val obj = JSONObject().apply {
+                put("category", b.category)
+                put("emoji", b.emoji)
+                put("dailyLimitMinutes", b.dailyLimitMinutes)
+                put("isEnabled", b.isEnabled)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString(KEY_CATEGORY_BUDGETS, array.toString()).apply()
+    }
+
+    fun updateCategoryBudget(category: String, limitMinutes: Int, isEnabled: Boolean) {
+        val current = getCategoryBudgets().map {
+            if (it.category == category) it.copy(dailyLimitMinutes = limitMinutes, isEnabled = isEnabled) else it
+        }
+        saveCategoryBudgets(current)
+    }
+
+    private fun defaultCategoryBudgets(): List<CategoryBudget> = listOf(
+        CategoryBudget("Social Media", "📸", 45, true),
+        CategoryBudget("Video & Streaming", "▶️", 60, true),
+        CategoryBudget("Gaming & Entertainment", "🎮", 30, false)
+    )
+
     fun isAnyScheduleActive(): Boolean {
         return getFocusSchedules().any { it.isCurrentlyActive() }
     }
@@ -377,11 +619,79 @@ class FocusFlowRepository(private val context: Context) {
         return getFocusSchedules().firstOrNull { it.isCurrentlyActive() }
     }
 
-    private fun defaultFocusSchedules(): List<FocusSchedule> = listOf(
-        FocusSchedule("sched_work", "Work Deep Focus", "\uD83D\uDCBC", startHour = 9, startMinute = 0, endHour = 17, endMinute = 0, daysSummary = "Mon - Fri", isEnabled = true),
-        FocusSchedule("sched_bedtime", "Bedtime Zen Shield", "\uD83C\uDF19", startHour = 22, startMinute = 0, endHour = 7, endMinute = 0, daysSummary = "Daily", isEnabled = true),
-        FocusSchedule("sched_evening", "Study Sprint", "\uD83D\uDCD6", startHour = 18, startMinute = 30, endHour = 20, endMinute = 30, daysSummary = "Mon - Sat", isEnabled = false)
-    )
+    fun getActiveScheduleBlockingApp(pkg: String): FocusSchedule? {
+        if (isOfficeOrWorkspaceApp(pkg)) return null
+        val activeSchedules = getFocusSchedules().filter { it.isCurrentlyActive() }
+        return activeSchedules.firstOrNull { schedule ->
+            if (schedule.targetAppPackages.isNotEmpty()) {
+                schedule.targetAppPackages.contains(pkg)
+            } else {
+                isPackageInBlockedSet(pkg)
+            }
+        }
+    }
+
+    fun isAppBlockedByActiveSchedule(pkg: String): Boolean {
+        return getActiveScheduleBlockingApp(pkg) != null
+    }
+
+    private fun defaultFocusSchedules(): List<FocusSchedule> {
+        val popularPkgs = listOf(
+            "com.instagram.android",
+            "com.google.android.youtube",
+            "com.zhiliaoapp.musically",
+            "com.twitter.android",
+            "com.reddit.frontpage",
+            "com.snapchat.android"
+        )
+        val installedTargets = popularPkgs.filter { isPackageInstalled(it) }
+        val finalTargets = if (installedTargets.isNotEmpty()) {
+            installedTargets
+        } else {
+            getInstalledLauncherPackagesMap().keys
+                .filter { !isOfficeOrWorkspaceApp(it) && !isEducationalApp(it) }
+                .take(4)
+        }
+
+        return listOf(
+            FocusSchedule(
+                id = "sched_work",
+                name = "Work Deep Focus",
+                emoji = "\uD83D\uDCBC",
+                startHour = 9,
+                startMinute = 0,
+                endHour = 17,
+                endMinute = 0,
+                daysSummary = "Mon - Fri",
+                isEnabled = true,
+                targetAppPackages = finalTargets
+            ),
+            FocusSchedule(
+                id = "sched_bedtime",
+                name = "Bedtime Zen Shield",
+                emoji = "\uD83C\uDF19",
+                startHour = 22,
+                startMinute = 0,
+                endHour = 7,
+                endMinute = 0,
+                daysSummary = "Daily",
+                isEnabled = true,
+                targetAppPackages = finalTargets
+            ),
+            FocusSchedule(
+                id = "sched_evening",
+                name = "Study Sprint",
+                emoji = "\uD83D\uDCD6",
+                startHour = 18,
+                startMinute = 30,
+                endHour = 20,
+                endMinute = 30,
+                daysSummary = "Mon - Sat",
+                isEnabled = false,
+                targetAppPackages = finalTargets
+            )
+        )
+    }
 
     // --- REGAIN CLONE: ADVANCED WEBSITE BLOCKING ENGINE ---
     fun getWebShieldSettings(): WebShieldSettings {
@@ -1314,6 +1624,11 @@ class FocusFlowRepository(private val context: Context) {
     }
 
     fun getWeeklyActivityHours(): List<Pair<String, Float>> {
+        val realWeekly = com.focusflow.app.util.DeviceUsageTracker.getWeeklyHistoricalUsageHours(context)
+        if (realWeekly.isNotEmpty() && realWeekly.any { it.second > 0f }) {
+            return realWeekly
+        }
+
         val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
         val cal = Calendar.getInstance()
         cal.firstDayOfWeek = Calendar.MONDAY
@@ -1521,20 +1836,25 @@ class FocusFlowRepository(private val context: Context) {
     // Productive Apps Whitelist
     private val defaultProductiveApps = listOf(
         ProductiveAppItem("app_phone", "Phone & Voice Calls", "com.google.android.dialer", "📞", "Communication", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_teams", "Microsoft Teams", "com.microsoft.teams", "👥", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_outlook", "Microsoft Outlook", "com.microsoft.office.outlook", "📧", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_whatsapp", "WhatsApp Messenger", "com.whatsapp", "💬", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_office365", "Microsoft 365 (Word/Excel)", "com.microsoft.office.officehubrow", "📊", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_slack", "Slack Work Chat", "com.slack", "💬", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_docs", "Docs & Drive", "com.google.android.apps.docs", "📄", "Office / Work", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_calendar", "Calendar", "com.google.android.calendar", "📅", "Schedule", isEnabled = true, isWorkModeOfficeApp = true),
-        ProductiveAppItem("app_notes", "Notes & Keep", "com.google.android.keep", "📝", "Productivity", isEnabled = true),
-        ProductiveAppItem("app_calc", "Calculator", "com.google.android.calculator", "🧮", "Utility", isEnabled = true),
-        ProductiveAppItem("app_clock", "Clock & Timer", "com.google.android.deskclock", "⏰", "Utility", isEnabled = true),
-        ProductiveAppItem("app_notion", "Notion", "notion.id", "💡", "Productivity", isEnabled = true),
-        ProductiveAppItem("app_tasks", "Google Tasks", "com.google.android.apps.tasks", "✅", "Productivity", isEnabled = true),
-        ProductiveAppItem("app_github", "GitHub", "com.github.android", "🐙", "Dev", isEnabled = true),
-        ProductiveAppItem("app_termux", "Termux Terminal", "com.termux", "💻", "Dev", isEnabled = true)
+        ProductiveAppItem("app_duolingo", "Duolingo", "com.duolingo", "🦉", "Education & Learning", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_khanacademy", "Khan Academy", "org.khanacademy.android", "🎓", "Education & Learning", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_quizlet", "Quizlet", "com.quizlet.quizletandroid", "📚", "Education & Learning", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_teams", "Microsoft Teams", "com.microsoft.teams", "👥", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_outlook", "Microsoft Outlook", "com.microsoft.office.outlook", "📧", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_whatsapp", "WhatsApp Messenger", "com.whatsapp", "💬", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_office365", "Microsoft 365 (Word/Excel)", "com.microsoft.office.officehubrow", "📊", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_slack", "Slack Work Chat", "com.slack", "💬", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_docs", "Docs & Drive", "com.google.android.apps.docs", "📄", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_gmail", "Gmail", "com.google.android.gm", "📬", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_zoom", "Zoom Meetings", "us.zoom.videomeetings", "📹", "Office / Work", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_calendar", "Calendar", "com.google.android.calendar", "📅", "Schedule", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_notes", "Notes & Keep", "com.google.android.keep", "📝", "Productivity", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_calc", "Calculator", "com.google.android.calculator", "🧮", "Utility", isEnabled = true, isEssential = true),
+        ProductiveAppItem("app_clock", "Clock & Timer", "com.google.android.deskclock", "⏰", "Utility", isEnabled = true, isEssential = true),
+        ProductiveAppItem("app_notion", "Notion", "notion.id", "💡", "Productivity", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_tasks", "Google Tasks", "com.google.android.apps.tasks", "✅", "Productivity", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_github", "GitHub", "com.github.android", "🐙", "Dev", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true),
+        ProductiveAppItem("app_termux", "Termux Terminal", "com.termux", "💻", "Dev", isEnabled = true, isEssential = true, isWorkModeOfficeApp = true)
     )
 
     fun isWorkModeEnabled(): Boolean = prefs.getBoolean(KEY_WORK_MODE_ENABLED, false)
@@ -1617,7 +1937,120 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putBoolean(KEY_FLOATING_PILL_ENABLED, enabled).apply()
     }
 
+    fun isEducationalApp(pkg: String): Boolean {
+        val target = pkg.lowercase()
+
+        // 1. Language Learning & Core Educational Giants (Duolingo, Khan Academy, Quizlet, Anki, etc.)
+        if (target == "com.duolingo" || target.startsWith("com.duolingo") || target.contains("duolingo")) return true
+        if (target.contains("khanacademy") || target.contains("quizlet") || target.contains("anki") || target.contains("ichi2.anki")) return true
+        if (target.contains("coursera") || target.contains("udemy") || target.contains("edx") || target.contains("babbel")) return true
+        if (target.contains("memrise") || target.contains("busuu") || target.contains("photomath") || target.contains("brilliant")) return true
+        if (target.contains("sololearn") || target.contains("codecademy") || target.contains("getmimo") || target.contains("wikipedia")) return true
+        if (target.contains("socratic") || target.contains("wolfram") || target.contains("geogebra") || target.contains("classroom")) return true
+        if (target.contains("lingvist") || target.contains("ted.android") || target.contains("brainly") || target.contains("chegg")) return true
+        if (target.contains("forestapp") || target.contains("elevate") || target.contains("lumoslabs.lumosity")) return true
+
+        // 2. Android OS ApplicationInfo.CATEGORY_EDUCATION inspection
+        try {
+            val pm = context.packageManager
+            val appInfo = pm.getApplicationInfo(pkg, 0)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                if (appInfo.category == android.content.pm.ApplicationInfo.CATEGORY_EDUCATION) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 3. Educational TLD or domain keyword
+        if (target.contains(".edu.") || target.endsWith(".edu") || target.contains(".education") || target.contains("learning")) {
+            return true
+        }
+
+        return false
+    }
+
+    fun isOfficeOrWorkspaceApp(pkg: String): Boolean {
+        if (pkg.isBlank()) return false
+        val target = pkg.lowercase().trim()
+
+        // 1. Microsoft 365 & Office Suite (Teams, Outlook, Word, Excel, PPT, OneNote, OneDrive, Loop, Copilot)
+        if (target == "com.microsoft.teams" || target == "com.microsoft.teams.v2" || target == "com.microsoft.skype.teams" || (target.startsWith("com.microsoft") && target.contains("teams"))) return true
+        if (target == "com.microsoft.office.outlook" || target == "com.microsoft.outlook" || (target.startsWith("com.microsoft") && target.contains("outlook"))) return true
+        if (target.startsWith("com.microsoft.office")) return true // Word, Excel, PowerPoint, Office Mobile, OneNote
+        if (target == "com.microsoft.skydrive" || target == "com.microsoft.onedrive") return true
+        if (target == "com.microsoft.todos" || target == "com.microsoft.whiteboard.android" || target == "com.microsoft.copilot") return true
+        if (target == "com.azure.authenticator" || target == "com.microsoft.windowsintune.companyportal") return true
+
+        // 2. Google Workspace Suite (Gmail, Drive, Docs, Sheets, Slides, Meet, Chat, Calendar, Keep, Tasks, Classroom)
+        if (target == "com.google.android.gm" || target == "com.google.android.gm.lite") return true
+        if (target == "com.google.android.apps.docs" || target == "com.google.android.apps.drive" || target.startsWith("com.google.android.apps.docs")) return true
+        if (target == "com.google.android.calendar" || target == "com.google.android.keep" || target == "com.google.android.apps.tasks") return true
+        if (target == "com.google.android.apps.meetings" || target == "com.google.android.apps.tachyon" || target == "com.google.android.apps.dynamite") return true
+        if (target == "com.google.android.apps.classroom") return true
+        if (target == "com.google.android.apps.work.clouddpc" || target == "com.google.android.apps.enterprise.dmagent") return true
+
+        // 3. Workspace Messaging & Video Conferencing
+        if (target == "com.slack" || target.startsWith("com.slack")) return true
+        if (target == "com.whatsapp" || target == "com.whatsapp.w4b" || target.startsWith("com.whatsapp")) return true
+        if (target == "us.zoom.videomeetings" || target.contains(".zoom.") || target.startsWith("us.zoom")) return true
+        if (target.contains("webex") || target.contains("cisco.wx2")) return true
+        if (target == "com.skype.raider" || target == "com.skype.m2") return true
+        if (target.contains("mattermost") || target.contains("larksuite") || target.contains("feishu")) return true
+
+        // 4. Project Management, Knowledge Base & Developer Workspace
+        if (target == "notion.id" || target.contains("notion")) return true
+        if (target == "com.asana.app" || target.contains("asana")) return true
+        if (target == "com.trello" || target.contains("trello")) return true
+        if (target.contains("atlassian") || target.contains("jira") || target.contains("confluence")) return true
+        if (target == "app.linear" || target.contains("linear")) return true
+        if (target == "co.clickup" || target.contains("clickup")) return true
+        if (target == "com.monday.monday" || target.contains("monday.com")) return true
+        if (target == "com.basecamp.bc3" || target.contains("basecamp")) return true
+        if (target == "com.github.android" || target.contains("gitlab") || target.contains("bitbucket")) return true
+        if (target == "com.figma.mirror" || target.contains("figma") || target.contains("miro")) return true
+        if (target.contains("airtable") || target.contains("coda.coda")) return true
+
+        // 5. Office Suite Alternatives (WPS Office, Polaris, Collabora, LibreOffice)
+        if (target.contains("moffice") || target.contains("collabora") || target.contains("infraware.office") || target.contains("openoffice")) return true
+
+        // 6. Enterprise / MDM / Work Profile Android Packages
+        if (target.contains("workprofile") || target.contains("workspace") || target.contains(".knox.") || target.contains("airwatch") || target.contains("mobileiron")) return true
+
+        // 7. Android OS ApplicationInfo.CATEGORY_PRODUCTIVITY check
+        try {
+            val pm = context.packageManager
+            val appInfo = pm.getApplicationInfo(pkg, 0)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                if (appInfo.category == android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 8. Work Profile / Managed Profile UserHandle Detection
+        try {
+            val launcherApps = context.getSystemService(android.content.Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+            val userManager = context.getSystemService(android.content.Context.USER_SERVICE) as? android.os.UserManager
+            if (launcherApps != null && userManager != null) {
+                for (profile in userManager.userProfiles) {
+                    if (userManager.isManagedProfile(profile.hashCode())) {
+                        val activities = launcherApps.getActivityList(pkg, profile)
+                        if (activities.isNotEmpty()) return true
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        return false
+    }
+
     fun isWorkAppAllowed(pkg: String): Boolean {
+        // Office and workspace apps should ALWAYS work
+        if (isOfficeOrWorkspaceApp(pkg)) return true
+
+        // Educational apps like Duolingo are always accessible
+        if (isEducationalApp(pkg)) return true
+
         val target = pkg.lowercase()
         // 1. Microsoft Teams
         if (target == "com.microsoft.teams" || target == "com.microsoft.teams.v2" || target.contains("teams")) return true
@@ -1633,7 +2066,7 @@ class FocusFlowRepository(private val context: Context) {
     }
 
     fun applyStrictWorkModePreset() {
-        val strictWorkIds = setOf("app_phone", "app_teams", "app_outlook", "app_whatsapp", "app_office365", "app_slack", "app_docs", "app_calendar")
+        val strictWorkIds = setOf("app_phone", "app_teams", "app_outlook", "app_whatsapp", "app_office365", "app_slack", "app_docs", "app_calendar", "app_gmail", "app_zoom", "app_notion")
         val disabledSet = defaultProductiveApps
             .filter { !strictWorkIds.contains(it.id) && !it.isEssential }
             .map { it.id }
@@ -1647,7 +2080,7 @@ class FocusFlowRepository(private val context: Context) {
     fun getProductiveAppItems(): List<ProductiveAppItem> {
         val disabledSet = prefs.getStringSet(KEY_DISABLED_PRODUCTIVE_APPS, emptySet()) ?: emptySet()
         return defaultProductiveApps.map { item ->
-            if (item.isEssential) item.copy(isEnabled = true)
+            if (item.isEssential || isOfficeOrWorkspaceApp(item.packageName)) item.copy(isEnabled = true, isEssential = true)
             else item.copy(isEnabled = !disabledSet.contains(item.id))
         }
     }
@@ -1663,6 +2096,12 @@ class FocusFlowRepository(private val context: Context) {
     }
 
     fun isProductiveAppAllowed(pkg: String): Boolean {
+        // Office and workspace apps should ALWAYS work regardless of Work Mode toggle
+        if (isOfficeOrWorkspaceApp(pkg)) return true
+
+        // Educational apps like Duolingo are inherently productive and always allowed
+        if (isEducationalApp(pkg)) return true
+
         // If Work Mode is active, check work app allowance
         if (isWorkModeActive() && isWorkAppAllowed(pkg)) {
             return true
@@ -1680,6 +2119,79 @@ class FocusFlowRepository(private val context: Context) {
                 (p == "com.whatsapp" && (target == "com.whatsapp" || target == "com.whatsapp.w4b" || target.startsWith("com.whatsapp"))) ||
                 (p.contains("office") && target.startsWith("com.microsoft.office"))
         }
+    }
+
+    // Master Shield Power Switch (User can turn off entire blocker anytime)
+    fun isMasterShieldEnabled(): Boolean = prefs.getBoolean(KEY_MASTER_SHIELD_ENABLED, true)
+
+    fun setMasterShieldEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_MASTER_SHIELD_ENABLED, enabled).apply()
+    }
+
+    // Always Allowed Apps (Apps the user can use all the time without any restrictions)
+    fun getAlwaysAllowedPackages(): Set<String> {
+        val defaultSet = setOf(
+            "com.google.android.dialer",
+            "com.android.dialer",
+            "com.samsung.android.dialer",
+            "com.google.android.apps.messaging",
+            "com.android.mms",
+            "com.google.android.apps.maps",
+            "com.android.settings",
+            "com.google.android.calculator",
+            "com.android.calculator2",
+            "com.google.android.deskclock",
+            "com.android.deskclock",
+            "com.google.android.apps.photos",
+            "com.spotify.music",
+            "com.whatsapp",
+            "com.whatsapp.w4b",
+            "com.microsoft.teams",
+            "com.microsoft.office.outlook",
+            "com.microsoft.office.officehubrow",
+            "com.microsoft.office.word",
+            "com.microsoft.office.excel",
+            "com.microsoft.office.powerpoint",
+            "com.microsoft.office.onenote",
+            "com.microsoft.skydrive",
+            "com.slack",
+            "com.google.android.apps.docs",
+            "com.google.android.gm",
+            "com.google.android.calendar",
+            "us.zoom.videomeetings",
+            "notion.id",
+            "com.google.android.keep",
+            "com.google.android.apps.tasks",
+            "com.github.android",
+            "com.focusflow.app"
+        )
+        return prefs.getStringSet(KEY_CUSTOM_ALWAYS_ALLOWED_PACKAGES, null) ?: defaultSet
+    }
+
+    fun setAlwaysAllowedPackages(packages: Set<String>) {
+        prefs.edit().putStringSet(KEY_CUSTOM_ALWAYS_ALLOWED_PACKAGES, packages).apply()
+    }
+
+    fun toggleAlwaysAllowedPackage(pkg: String, allowed: Boolean) {
+        val set = getAlwaysAllowedPackages().toMutableSet()
+        if (allowed) {
+            set.add(pkg.lowercase())
+        } else {
+            // Never remove office or workspace apps from always allowed
+            if (isOfficeOrWorkspaceApp(pkg)) return
+            set.remove(pkg.lowercase())
+        }
+        setAlwaysAllowedPackages(set)
+    }
+
+    fun isAlwaysAllowed(pkg: String): Boolean {
+        if (pkg == "com.focusflow.app") return true
+        if (isOfficeOrWorkspaceApp(pkg)) return true
+        if (isEducationalApp(pkg)) return true
+        val target = pkg.lowercase()
+        val alwaysSet = getAlwaysAllowedPackages()
+        if (alwaysSet.contains(target) || alwaysSet.any { target.startsWith(it) }) return true
+        return isProductiveAppAllowed(pkg)
     }
 
     // Notification Shield & Batching
@@ -1919,23 +2431,31 @@ class FocusFlowRepository(private val context: Context) {
     // --- ALL APPS SHIELD & BLOCKER (EVERY APP TOGGLE HUB) ---
     private val defaultBlockedPackages = setOf(
         "com.instagram.android",
-        "com.zhiliaoapp.musically",
+        "com.google.android.youtube",
         "com.twitter.android",
-        "com.reddit.frontpage",
-        "com.snapchat.android"
+        "com.reddit.frontpage"
     )
 
     fun isPackageInBlockedSet(packageName: String): Boolean {
+        // Must be actually installed on this phone
+        if (!isPackageInstalled(packageName)) return false
+        // Office apps and workspace are strictly protected and never blocked
+        if (isOfficeOrWorkspaceApp(packageName)) return false
+        // Educational apps like Duolingo are protected and never blocked
+        if (isEducationalApp(packageName)) return false
         val blockedSet = prefs.getStringSet(KEY_BLOCKED_APP_PACKAGES_SET, null)
         return if (blockedSet != null) {
             blockedSet.contains(packageName)
         } else {
-            defaultBlockedPackages.contains(packageName)
+            defaultBlockedPackages.filter { isPackageInstalled(it) }.toSet().contains(packageName)
         }
     }
 
     fun setAppBlockedState(packageName: String, isBlocked: Boolean) {
-        val currentSet = (prefs.getStringSet(KEY_BLOCKED_APP_PACKAGES_SET, null) ?: defaultBlockedPackages).toMutableSet()
+        // Office apps, workspace, and educational apps are protected and can never be blocked
+        if (isOfficeOrWorkspaceApp(packageName) || isEducationalApp(packageName)) return
+
+        val currentSet = (prefs.getStringSet(KEY_BLOCKED_APP_PACKAGES_SET, null) ?: defaultBlockedPackages.filter { isPackageInstalled(it) }.toSet()).toMutableSet()
         if (isBlocked) {
             currentSet.add(packageName)
         } else {
@@ -1954,8 +2474,10 @@ class FocusFlowRepository(private val context: Context) {
 
     fun batchSetCategoryBlocked(category: String, isBlocked: Boolean) {
         val rules = getAllAppShieldRules()
-        val targetPackages = rules.filter { it.category.equals(category, ignoreCase = true) }.map { it.packageName }
-        val currentSet = (prefs.getStringSet(KEY_BLOCKED_APP_PACKAGES_SET, null) ?: defaultBlockedPackages).toMutableSet()
+        val targetPackages = rules
+            .filter { it.category.equals(category, ignoreCase = true) && !isEducationalApp(it.packageName) && !isOfficeOrWorkspaceApp(it.packageName) }
+            .map { it.packageName }
+        val currentSet = (prefs.getStringSet(KEY_BLOCKED_APP_PACKAGES_SET, null) ?: defaultBlockedPackages.filter { isPackageInstalled(it) }.toSet()).toMutableSet()
         if (isBlocked) {
             currentSet.addAll(targetPackages)
         } else {
@@ -1965,23 +2487,11 @@ class FocusFlowRepository(private val context: Context) {
     }
 
     fun getAllAppShieldRules(): List<AppShieldRuleItem> {
-        val pm = context.packageManager
-        val launcherIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null).apply {
-            addCategory(android.content.Intent.CATEGORY_LAUNCHER)
-        }
-        val installedMap = mutableMapOf<String, String>()
-        try {
-            val resolveList = pm.queryIntentActivities(launcherIntent, 0)
-            for (info in resolveList) {
-                val pkg = info.activityInfo.packageName
-                if (pkg != context.packageName) {
-                    val label = info.loadLabel(pm)?.toString() ?: pkg
-                    installedMap[pkg] = label
-                }
-            }
-        } catch (ignored: Exception) {}
+        val installedMap = getInstalledLauncherPackagesMap()
 
         val catalog = listOf(
+            AppShieldRuleItem("com.duolingo", "Duolingo", "Education & Learning", "🦉", false, 60, installedMap.containsKey("com.duolingo")),
+            AppShieldRuleItem("org.khanacademy.android", "Khan Academy", "Education & Learning", "🎓", false, 60, installedMap.containsKey("org.khanacademy.android")),
             AppShieldRuleItem("com.instagram.android", "Instagram", "Social Media", "📸", isPackageInBlockedSet("com.instagram.android"), 15, installedMap.containsKey("com.instagram.android")),
             AppShieldRuleItem("com.zhiliaoapp.musically", "TikTok", "Short Video", "🎵", isPackageInBlockedSet("com.zhiliaoapp.musically"), 10, installedMap.containsKey("com.zhiliaoapp.musically")),
             AppShieldRuleItem("com.google.android.youtube", "YouTube", "Video & Music", "▶️", isPackageInBlockedSet("com.google.android.youtube"), 45, installedMap.containsKey("com.google.android.youtube")),
@@ -2002,12 +2512,18 @@ class FocusFlowRepository(private val context: Context) {
             AppShieldRuleItem("com.king.candycrushsaga", "Candy Crush", "Games", "🍬", isPackageInBlockedSet("com.king.candycrushsaga"), 15, installedMap.containsKey("com.king.candycrushsaga"))
         )
 
-        val existingPackages = catalog.map { it.packageName }.toSet()
-        val combinedList = catalog.toMutableList()
+        // STRICT FILTER: Only include catalog items that are ACTUALLY installed on the user's phone!
+        val combinedList = catalog.filter { installedMap.containsKey(it.packageName) }
+            .map { it.copy(isInstalled = true) }
+            .toMutableList()
+        val existingPackages = combinedList.map { it.packageName }.toSet()
 
         installedMap.forEach { (pkg, label) ->
             if (!existingPackages.contains(pkg)) {
+                val isEdu = isEducationalApp(pkg)
                 val emoji = when {
+                    pkg.contains("duolingo") -> "🦉"
+                    isEdu -> "🎓"
                     label.contains("camera", ignoreCase = true) -> "📷"
                     label.contains("gallery", ignoreCase = true) || label.contains("photos", ignoreCase = true) -> "🖼️"
                     label.contains("clock", ignoreCase = true) -> "⏰"
@@ -2021,6 +2537,7 @@ class FocusFlowRepository(private val context: Context) {
                     else -> "📱"
                 }
                 val category = when {
+                    isEdu -> "Education & Learning"
                     label.contains("game", ignoreCase = true) -> "Games"
                     label.contains("browser", ignoreCase = true) -> "Browsers"
                     else -> "Installed Apps"
@@ -2031,7 +2548,7 @@ class FocusFlowRepository(private val context: Context) {
                         appName = label,
                         category = category,
                         iconEmoji = emoji,
-                        isBlocked = isPackageInBlockedSet(pkg),
+                        isBlocked = if (isEdu) false else isPackageInBlockedSet(pkg),
                         dailyLimitMinutes = 30,
                         isInstalled = true
                     )
@@ -2137,6 +2654,20 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putBoolean(prefKey, value).apply()
     }
 
+    fun setDailyDigestTime(hour: Int, minute: Int) {
+        prefs.edit()
+            .putInt(KEY_NOTIF_DIGEST_HOUR, hour.coerceIn(0, 23))
+            .putInt(KEY_NOTIF_DIGEST_MINUTE, minute.coerceIn(0, 59))
+            .apply()
+    }
+
+    fun getDailyDigestTime(): Pair<Int, Int> {
+        return Pair(
+            prefs.getInt(KEY_NOTIF_DIGEST_HOUR, 21),
+            prefs.getInt(KEY_NOTIF_DIGEST_MINUTE, 0)
+        )
+    }
+
     // --- USER PREFERENCES (SETTINGS) ---
     fun getDailyFocusGoal(): Int = prefs.getInt(KEY_DAILY_FOCUS_GOAL, 120)
 
@@ -2150,6 +2681,16 @@ class FocusFlowRepository(private val context: Context) {
     fun getSoundEnabled(): Boolean = prefs.getBoolean(KEY_SOUND_ENABLED, true)
     fun setSoundEnabled(enabled: Boolean) { prefs.edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply() }
 
+    // --- SESSION & TIMER ALARM PREFERENCES ---
+    fun getTimerAlarmSound(): String = prefs.getString(KEY_TIMER_ALARM_SOUND, "Gentle Chime") ?: "Gentle Chime"
+    fun setTimerAlarmSound(sound: String) { prefs.edit().putString(KEY_TIMER_ALARM_SOUND, sound).apply() }
+
+    fun isTimerAlarmEnabled(): Boolean = prefs.getBoolean(KEY_TIMER_ALARM_ENABLED, true)
+    fun setTimerAlarmEnabled(enabled: Boolean) { prefs.edit().putBoolean(KEY_TIMER_ALARM_ENABLED, enabled).apply() }
+
+    fun isTimerVibrateEnabled(): Boolean = prefs.getBoolean(KEY_TIMER_VIBRATE_ENABLED, true)
+    fun setTimerVibrateEnabled(enabled: Boolean) { prefs.edit().putBoolean(KEY_TIMER_VIBRATE_ENABLED, enabled).apply() }
+
     fun setCustomLongBreakMinutes(minutes: Int) {
         prefs.edit().putInt(KEY_CUSTOM_LONG_BREAK_MINS, minutes).apply()
     }
@@ -2162,7 +2703,16 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putInt(KEY_TOTAL_COINS_EARNED, current + amount).apply()
     }
 
+    // --- HOME SCREEN SHORTCUT & WIDGET PINNING STATUS ---
+    fun isShortcutAdded(): Boolean = prefs.getBoolean(KEY_SHORTCUT_ADDED, false)
+    fun setShortcutAdded(added: Boolean) { prefs.edit().putBoolean(KEY_SHORTCUT_ADDED, added).apply() }
+
+    fun isWidgetPinned(): Boolean = prefs.getBoolean(KEY_WIDGET_PINNED, false)
+    fun setWidgetPinned(pinned: Boolean) { prefs.edit().putBoolean(KEY_WIDGET_PINNED, pinned).apply() }
+
     companion object {
+        private const val KEY_SHORTCUT_ADDED = "key_shortcut_added"
+        private const val KEY_WIDGET_PINNED = "key_widget_pinned"
         private const val KEY_ONBOARDING_DONE = "key_onboarding_done"
         private const val KEY_USER_GOAL = "key_user_goal"
         private const val KEY_LOCK_PIN = "key_lock_pin"
@@ -2191,6 +2741,7 @@ class FocusFlowRepository(private val context: Context) {
         private const val KEY_ACTIVE_DATES_SET = "key_active_dates_set"
         private const val KEY_LAST_ACTIVE_DATE = "key_last_active_date"
         private const val KEY_FOCUS_SCHEDULES = "key_focus_schedules"
+        private const val KEY_CATEGORY_BUDGETS = "key_category_budgets"
         private const val KEY_UNLOCKED_STORE_ITEMS = "key_unlocked_store_items"
         private const val KEY_EQUIPPED_THEME = "key_equipped_theme"
         private const val KEY_JIGSAW_THEME = "key_jigsaw_theme"
@@ -2222,6 +2773,10 @@ class FocusFlowRepository(private val context: Context) {
         private const val KEY_USER_LEVEL = "key_user_level"
         private const val KEY_USER_XP = "key_user_xp"
         private const val KEY_USER_TOTAL_XP = "key_user_total_xp"
+        private const val KEY_USER_NAME = "key_user_name"
+        private const val KEY_USER_BIO = "key_user_bio"
+        private const val KEY_USER_AVATAR = "key_user_avatar"
+        private const val KEY_USER_JOINED_DATE = "key_user_joined_date"
         private const val KEY_NOTIF_FOCUS_REMINDERS = "key_notif_focus_reminders"
         private const val KEY_NOTIF_STREAK_ALERTS = "key_notif_streak_alerts"
         private const val KEY_NOTIF_DAILY_DIGEST = "key_notif_daily_digest"
@@ -2238,6 +2793,9 @@ class FocusFlowRepository(private val context: Context) {
         private const val KEY_DAILY_FOCUS_GOAL = "key_daily_focus_goal"
         private const val KEY_HAPTIC_ENABLED = "key_haptic_enabled"
         private const val KEY_SOUND_ENABLED = "key_sound_enabled"
+        private const val KEY_TIMER_ALARM_SOUND = "key_timer_alarm_sound"
+        private const val KEY_TIMER_ALARM_ENABLED = "key_timer_alarm_enabled"
+        private const val KEY_TIMER_VIBRATE_ENABLED = "key_timer_vibrate_enabled"
         private const val KEY_CUSTOM_LONG_BREAK_MINS = "key_custom_long_break_mins"
         private const val KEY_TOTAL_COINS_EARNED = "key_total_coins_earned"
 
@@ -2263,6 +2821,8 @@ class FocusFlowRepository(private val context: Context) {
         private const val KEY_INTENTIONAL_PASSES_TODAY = "key_intentional_passes_today"
         private const val KEY_HABIT_RESISTANCE_DATE = "key_habit_resistance_date"
         private const val KEY_FLOATING_PILL_ENABLED = "key_floating_pill_enabled"
+        private const val KEY_MASTER_SHIELD_ENABLED = "key_master_shield_enabled"
+        private const val KEY_CUSTOM_ALWAYS_ALLOWED_PACKAGES = "key_custom_always_allowed_packages"
 
         // Built-in Categorized Web Domains
         val ADULT_NSFW_DOMAINS = listOf(

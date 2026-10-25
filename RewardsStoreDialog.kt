@@ -5,6 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,6 +70,8 @@ fun RewardsStoreDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.94f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -74,6 +80,7 @@ fun RewardsStoreDialog(
             shape = RoundedCornerShape(26.dp),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.90f)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -82,11 +89,11 @@ fun RewardsStoreDialog(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .fillMaxSize()
+                    .padding(20.dp),
                 horizontalAlignment = Alignment.Start
             ) {
-                // Header & Coin Balance
+                // Header & Coin Balance (Fixed at top)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -149,9 +156,9 @@ fun RewardsStoreDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Category Tabs
+                // Category Tabs (Fixed at top)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -189,125 +196,134 @@ fun RewardsStoreDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Store Items List
-                filteredItems.forEach { item ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = FocusPanelLight),
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 5.dp)
-                            .then(
-                                if (item.isEquipped) {
-                                    Modifier.border(1.dp, FocusAccent, RoundedCornerShape(18.dp))
-                                } else {
-                                    Modifier
-                                }
-                            )
-                    ) {
-                        Row(
+                // Scrollable Content Area: Store Items List + Footer Tip
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    filteredItems.forEach { item ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = FocusPanelLight),
+                            shape = RoundedCornerShape(18.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .then(
+                                    if (item.isEquipped) {
+                                        Modifier.border(1.dp, FocusAccent, RoundedCornerShape(18.dp))
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                         ) {
-                            Box(
+                            Row(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(FocusPanel),
-                                contentAlignment = Alignment.Center
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(item.iconEmoji, fontSize = 22.sp)
-                            }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.title,
-                                    color = FocusWhite,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = item.description,
-                                    color = FocusSecondary,
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Action Button (Equipped / Equip / Unlock)
-                            when {
-                                item.isEquipped -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(FocusAccentSoft)
-                                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                                    ) {
-                                        Text("✓ Equipped", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(FocusPanel),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(item.iconEmoji, fontSize = 22.sp)
                                 }
-                                item.isUnlocked -> {
-                                    Button(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            viewModel.equipStoreItem(item.id)
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = FocusPanel),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.height(36.dp)
-                                    ) {
-                                        Text("Equip", color = FocusWhite, fontSize = 11.sp)
-                                    }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.title,
+                                        color = FocusWhite,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.description,
+                                        color = FocusSecondary,
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp
+                                    )
                                 }
-                                else -> {
-                                    val canAfford = viewModel.focusCoins >= item.cost
-                                    Button(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            viewModel.purchaseStoreItem(item.id)
-                                        },
-                                        enabled = canAfford,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (canAfford) FocusAccent else FocusPanelBorder,
-                                            contentColor = if (canAfford) FocusBackground else FocusSecondary
-                                        ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.height(36.dp)
-                                    ) {
-                                        Text("${item.cost} 🪙", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Action Button (Equipped / Equip / Unlock)
+                                when {
+                                    item.isEquipped -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(FocusAccentSoft)
+                                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("✓ Equipped", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    item.isUnlocked -> {
+                                        Button(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                viewModel.equipStoreItem(item.id)
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = FocusPanel),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(36.dp)
+                                        ) {
+                                            Text("Equip", color = FocusWhite, fontSize = 11.sp)
+                                        }
+                                    }
+                                    else -> {
+                                        val canAfford = viewModel.focusCoins >= item.cost
+                                        Button(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.purchaseStoreItem(item.id)
+                                            },
+                                            enabled = canAfford,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (canAfford) FocusAccent else FocusPanelBorder,
+                                                contentColor = if (canAfford) FocusBackground else FocusSecondary
+                                            ),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(36.dp)
+                                        ) {
+                                            Text("${item.cost} 🪙", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                // Footer Tip
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(FocusPanelLight, RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        "💡 Solve Coding Challenges & Jigsaw Puzzles during breaks to earn more Focus Coins!",
-                        color = FocusSecondary,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp
-                    )
+                    // Footer Tip
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(FocusPanelLight, RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            "💡 Solve Coding Challenges & Jigsaw Puzzles during breaks to earn more Focus Coins!",
+                            color = FocusSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))

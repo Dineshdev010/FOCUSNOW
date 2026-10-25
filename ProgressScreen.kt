@@ -49,8 +49,8 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
 
-    val totalHours = String.format("%.1f", viewModel.totalFocusMinutes / 60f)
-    val savedHours = String.format("%.1f", viewModel.savedScreenTimeMinutes / 60f)
+    val totalHours = String.format(java.util.Locale.US, "%.1f", viewModel.totalFocusMinutes / 60f)
+    val savedHours = String.format(java.util.Locale.US, "%.1f", viewModel.savedScreenTimeMinutes / 60f)
 
     Column(
         modifier = Modifier
@@ -58,24 +58,61 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        Text(
-            text = "DOPAMINE DETOX & METRICS",
-            color = FocusAccent,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
-        )
+        val context = androidx.compose.ui.platform.LocalContext.current
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "DOPAMINE DETOX & METRICS",
+                    color = FocusAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
 
-        Text(
-            text = "Your Reclaimed Time",
-            color = FocusWhite,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold
-        )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Your Reclaimed Time",
+                    color = FocusWhite,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(FocusAccent.copy(alpha = 0.15f))
+                    .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.sendDailyReportNotification(context)
+                        android.widget.Toast.makeText(context, "Daily report sent to notifications! 📊", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("📊", fontSize = 14.sp)
+                    Text(
+                        text = "Report",
+                        color = FocusAccent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -721,12 +758,34 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                listOf(
-                    Triple("📸 Instagram Reels", "7 Interventions", "+21m Reclaimed"),
-                    Triple("▶️ YouTube Shorts", "5 Interventions", "+15m Reclaimed"),
-                    Triple("👻 Snapchat Spotlight", "4 Interventions", "+12m Reclaimed"),
-                    Triple("🌐 Web Doomscrolling", "3 Interventions", "+9m Reclaimed")
-                ).forEach { (app, interventions, saved) ->
+                val defenseLogItems = remember(viewModel.reelsBlockedCount, viewModel.blockedApps) {
+                    val list = mutableListOf<Triple<String, String, String>>()
+                    if (viewModel.isPackageInstalled("com.instagram.android")) {
+                        list.add(Triple("📸 Instagram Reels", "7 Interventions", "+21m Reclaimed"))
+                    }
+                    if (viewModel.isPackageInstalled("com.google.android.youtube")) {
+                        list.add(Triple("▶️ YouTube Shorts", "5 Interventions", "+15m Reclaimed"))
+                    }
+                    if (viewModel.isPackageInstalled("com.snapchat.android")) {
+                        list.add(Triple("👻 Snapchat Spotlight", "4 Interventions", "+12m Reclaimed"))
+                    }
+                    if (viewModel.isPackageInstalled("com.zhiliaoapp.musically")) {
+                        list.add(Triple("🎵 TikTok Feed", "3 Interventions", "+9m Reclaimed"))
+                    }
+                    if (viewModel.isPackageInstalled("com.reddit.frontpage")) {
+                        list.add(Triple("🤖 Reddit Infinite Scroll", "3 Interventions", "+9m Reclaimed"))
+                    }
+                    for (app in viewModel.blockedApps) {
+                        if (list.size >= 4) break
+                        if (list.none { it.first.contains(app.name, ignoreCase = true) } && viewModel.isPackageInstalled(app.packageName)) {
+                            val count = (app.opensToday * 2).coerceAtLeast(3)
+                            list.add(Triple("${app.iconEmoji} ${app.name}", "$count Interventions", "+${count * 3}m Reclaimed"))
+                        }
+                    }
+                    list.add(Triple("🌐 Web Doomscrolling", "3 Interventions", "+9m Reclaimed"))
+                    list
+                }
+                defenseLogItems.forEach { (app, interventions, saved) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -973,6 +1032,16 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text("Connect 📲", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (viewModel.totalDeviceScreenTimeMinutes > 0) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(FocusAccentSoft)
+                                .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Total: ${viewModel.totalDeviceScreenTimeString}", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -2624,6 +2693,6 @@ fun DoomscrollDefenseRadarCard(stats: List<DoomscrollDefenseStat>) {
             }
         }
 
-        Spacer(modifier = Modifier.height(135.dp))
+        Spacer(modifier = Modifier.height(44.dp))
     }
 }

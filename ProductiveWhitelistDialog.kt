@@ -9,17 +9,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,12 +55,15 @@ fun ProductiveWhitelistDialog(
 ) {
     BackHandler { onClose() }
     val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val items = viewModel.productiveAppItems
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.95f))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -64,6 +72,7 @@ fun ProductiveWhitelistDialog(
             shape = RoundedCornerShape(26.dp),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.90f)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -72,10 +81,10 @@ fun ProductiveWhitelistDialog(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(22.dp)
+                    .fillMaxSize()
+                    .padding(20.dp)
             ) {
-                // Header
+                // Header (Fixed at top)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -112,7 +121,15 @@ fun ProductiveWhitelistDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Scrollable Body
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
 
                 // Work Mode Quick Preset & Toggle Card
                 val isWorkMode = viewModel.isWorkModeEnabled || viewModel.repository.isWorkModeActive()
@@ -254,6 +271,9 @@ fun ProductiveWhitelistDialog(
                                 onCheckedChange = { enabled ->
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     viewModel.toggleFloatingPill(enabled)
+                                    if (enabled && !com.focusflow.app.util.PermissionHelper.hasOverlayPermission(context)) {
+                                        com.focusflow.app.util.PermissionHelper.openOverlaySettings(context)
+                                    }
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = FocusBackground,
@@ -290,14 +310,11 @@ fun ProductiveWhitelistDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // App Items List
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .heightIn(max = 340.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(items, key = { it.id }) { item ->
+                    items.forEach { item ->
                         ProductiveAppRow(
                             item = item,
                             isWorkModeActive = isWorkMode,
@@ -308,31 +325,32 @@ fun ProductiveWhitelistDialog(
                         )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-                // Done Button
-                Button(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onClose()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Text(
-                        text = "Save & Keep Active 🛡️",
-                        color = FocusBackground,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            // Done Button (Fixed at bottom so always visible)
+            Button(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClose()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "Save & Keep Active 🛡️",
+                    color = FocusBackground,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
+}
 }
 
 @Composable
@@ -370,33 +388,34 @@ private fun ProductiveAppRow(
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
-                        if (item.isEssential) {
+                        val isEdu = item.category.contains("Education", ignoreCase = true) || item.id.contains("duolingo", ignoreCase = true)
+                        if (isEdu) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(FocusAccent.copy(alpha = 0.2f))
+                                    .background(FocusAccent.copy(alpha = 0.25f))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "ALWAYS ON",
+                                    text = "IMMUNE 🎓",
                                     color = FocusAccent,
                                     fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     maxLines = 1,
                                     softWrap = false
                                 )
                             }
-                        } else if (item.isWorkModeOfficeApp) {
+                        } else if (item.isWorkModeOfficeApp || item.isEssential) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(CategoryWork.copy(alpha = 0.2f))
+                                    .background(CategoryWork.copy(alpha = 0.25f))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "OFFICE WORK",
+                                    text = "ALWAYS UNBLOCKED 💼",
                                     color = CategoryWork,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
@@ -412,15 +431,16 @@ private fun ProductiveAppRow(
                             color = FocusSecondary,
                             fontSize = 10.sp
                         )
-                        if (isWorkModeActive) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (item.isWorkModeOfficeApp || item.isEssential) "• 🟢 Allowed in Work Mode" else "• 🔒 Restricted",
-                                color = if (item.isWorkModeOfficeApp || item.isEssential) FocusAccent else FocusSecondary.copy(alpha = 0.6f),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isEdu) "• 🎓 Educational (Never Blocked)"
+                                else if (item.isWorkModeOfficeApp || item.isEssential) "• 🟢 Office & Workspace (Always Unblocked)"
+                                else if (isWorkModeActive) "• 🔒 Restricted in Work Mode"
+                                else "• 🛡️ Whitelisted",
+                            color = if (isEdu || item.isWorkModeOfficeApp || item.isEssential) FocusAccent else FocusSecondary.copy(alpha = 0.6f),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }

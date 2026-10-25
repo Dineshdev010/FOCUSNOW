@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -38,7 +41,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.window.Dialog
+import com.focusflow.app.util.PermissionHelper
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +62,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -63,8 +71,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusflow.app.model.FocusSoundscape
 import com.focusflow.app.ui.components.FocusHourglassFlameIcon
-import com.focusflow.app.ui.components.FocusLeafIcon
 import com.focusflow.app.ui.theme.*
+import com.focusflow.app.util.FocusAlarmManager
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 
 @Composable
@@ -204,8 +212,32 @@ fun FocusNowAnimatedHourglass(
 @Composable
 fun FocusScreen(viewModel: FocusFlowViewModel) {
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     var showCustomDurationDialog by remember { mutableStateOf(false) }
+    var isTestingTimerAlarm by remember { mutableStateOf(false) }
+
+    var hasOverlayPermission by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(context)) }
+    var showFloatingPermissionDialog by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasOverlayPermission = PermissionHelper.hasOverlayPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            FocusAlarmManager.stopAlarm(context)
+        }
+    }
 
     val currentMode = viewModel.modes[viewModel.currentModeIndex]
     val totalSeconds = currentMode.durationSeconds
@@ -286,6 +318,63 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+
+        // Floating Focus Island Permission Banner
+        if (viewModel.isFloatingPillEnabled && !hasOverlayPermission) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF1E1B18))
+                    .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        PermissionHelper.openOverlaySettings(context)
+                    }
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("🏝️", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Floating Screen Permission Needed",
+                                color = Color(0xFFFBBF24),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Enable 'Appear on top' to float live timer over other apps",
+                                color = FocusSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF59E0B))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Enable",
+                            color = FocusBackground,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -483,7 +572,7 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
             // Inner Timer Display: Session Tag + Time + Flowing Hourglass + Subtext
             val minutes = remaining / 60
             val seconds = remaining % 60
-            val timeString = String.format("%02d:%02d", minutes, seconds)
+            val timeString = String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -575,7 +664,11 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                 if (viewModel.isTimerRunning) {
                     viewModel.pauseTimer()
                 } else {
-                    viewModel.startTimer()
+                    if (viewModel.isFloatingPillEnabled && !hasOverlayPermission) {
+                        showFloatingPermissionDialog = true
+                    } else {
+                        viewModel.startTimer()
+                    }
                 }
             },
             colors = ButtonDefaults.buttonColors(
@@ -665,6 +758,235 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                 color = FocusSecondary,
                 fontSize = 12.sp
             )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Session Completion Alarm Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = FocusPanel),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, if (viewModel.isTimerAlarmEnabled) FocusAccent.copy(alpha = 0.35f) else FocusBorder, RoundedCornerShape(18.dp))
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (viewModel.isTimerAlarmEnabled) FocusAccent.copy(alpha = 0.2f) else FocusPanelLight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(if (viewModel.isTimerAlarmEnabled) "⏰" else "🔕", fontSize = 17.sp)
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Session Completion Alarm",
+                                color = FocusWhite,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (viewModel.isTimerAlarmEnabled) "Audio & haptic chime when timer ends" else "Silent completion",
+                                color = if (viewModel.isTimerAlarmEnabled) FocusAccent else FocusSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = viewModel.isTimerAlarmEnabled,
+                        onCheckedChange = { checked ->
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.updateTimerAlarmSettings(
+                                sound = viewModel.timerAlarmSound,
+                                enabled = checked,
+                                vibrate = viewModel.isTimerVibrateEnabled
+                            )
+                            if (!checked && isTestingTimerAlarm) {
+                                FocusAlarmManager.stopAlarm(context)
+                                isTestingTimerAlarm = false
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = FocusBackground,
+                            checkedTrackColor = FocusAccent,
+                            uncheckedThumbColor = FocusSecondary,
+                            uncheckedTrackColor = FocusBorder
+                        )
+                    )
+                }
+
+                if (viewModel.isTimerAlarmEnabled) {
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (viewModel.isTimerRunning) {
+                        val alarmTargetMillis = System.currentTimeMillis() + (viewModel.timerRemainingSeconds * 1000L)
+                        val cal = java.util.Calendar.getInstance().apply { timeInMillis = alarmTargetMillis }
+                        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                        val minute = cal.get(java.util.Calendar.MINUTE)
+                        val amPm = if (hour >= 12) "PM" else "AM"
+                        val displayHour = when {
+                            hour == 0 -> 12
+                            hour > 12 -> hour - 12
+                            else -> hour
+                        }
+                        val formattedTime = String.format(java.util.Locale.US, "%d:%02d %s", displayHour, minute, amPm)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(FocusAccent.copy(alpha = 0.15f))
+                                .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🟢", fontSize = 9.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Alarm Scheduled for $formattedTime",
+                                        color = FocusAccent,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = "Exact Wake-Up ⚡",
+                                    color = Color(0xFFBBF7D0),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    val timerSounds = listOf(
+                        Pair(FocusAlarmManager.ALARM_SOUND_GENTLE_CHIME, "🔔 Gentle Chime"),
+                        Pair(FocusAlarmManager.ALARM_SOUND_ZEN_GONG, "🧘 Zen Gong"),
+                        Pair(FocusAlarmManager.ALARM_SOUND_CLASSIC, "⏰ Classic Alarm"),
+                        Pair(FocusAlarmManager.ALARM_SOUND_DIGITAL_BELL, "📟 Digital Bell"),
+                        Pair(FocusAlarmManager.ALARM_SOUND_SYSTEM, "📱 System Alarm")
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(timerSounds) { (soundKey, soundLabel) ->
+                            val isSel = viewModel.timerAlarmSound == soundKey
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSel) FocusAccent.copy(alpha = 0.25f) else FocusPanelLight)
+                                    .border(
+                                        1.dp,
+                                        if (isSel) FocusAccent else FocusBorder,
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.updateTimerAlarmSettings(
+                                            sound = soundKey,
+                                            enabled = true,
+                                            vibrate = viewModel.isTimerVibrateEnabled
+                                        )
+                                        if (isTestingTimerAlarm) {
+                                            FocusAlarmManager.playAlarm(context, soundKey, loop = false, vibrate = viewModel.isTimerVibrateEnabled)
+                                        }
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = soundLabel,
+                                    color = if (isSel) FocusAccent else FocusWhite,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.updateTimerAlarmSettings(
+                                        sound = viewModel.timerAlarmSound,
+                                        enabled = true,
+                                        vibrate = !viewModel.isTimerVibrateEnabled
+                                    )
+                                }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(if (viewModel.isTimerVibrateEnabled) "📳" else "🔕", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (viewModel.isTimerVibrateEnabled) "Vibration ON" else "Vibration OFF",
+                                color = if (viewModel.isTimerVibrateEnabled) FocusWhite else FocusSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isTestingTimerAlarm) Color(0xFFEF4444).copy(alpha = 0.2f) else FocusAccent.copy(alpha = 0.15f))
+                                .border(1.dp, if (isTestingTimerAlarm) Color(0xFFEF4444) else FocusAccent, RoundedCornerShape(10.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    if (isTestingTimerAlarm) {
+                                        FocusAlarmManager.stopAlarm(context)
+                                        isTestingTimerAlarm = false
+                                    } else {
+                                        isTestingTimerAlarm = true
+                                        FocusAlarmManager.playAlarm(
+                                            context = context,
+                                            soundName = viewModel.timerAlarmSound,
+                                            loop = false,
+                                            vibrate = viewModel.isTimerVibrateEnabled
+                                        )
+                                    }
+                                }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = if (isTestingTimerAlarm) "⏹️ Stop" else "▶️ Test Sound",
+                                color = if (isTestingTimerAlarm) Color(0xFFFCA5A5) else FocusAccent,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -781,16 +1103,17 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = linkedTask?.title ?: "Build the expense tracker app",
-                            color = FocusWhite,
+                            text = linkedTask?.title ?: if (uncompletedTasks.isEmpty()) "No active tasks (tap to create)" else "Link a task to this session",
+                            color = if (linkedTask != null) FocusWhite else FocusSecondary,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
+                            fontWeight = if (linkedTask != null) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Keep going! You're making progress.",
-                            color = FocusSecondary,
+                            text = if (linkedTask != null) "${linkedTask.category} • Tap to cycle (${uncompletedTasks.size} tasks)" else "Tap to link • Earn +15 🪙 bonus coins upon finish",
+                            color = if (linkedTask != null) FocusAccent else FocusMuted,
                             fontSize = 11.sp
                         )
                     }
@@ -823,7 +1146,7 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text("\uD83D\uDEE1\uFE0F", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -1327,7 +1650,12 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.openScheduleForEditing(schedule)
+                                    },
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(schedule.emoji, fontSize = 20.sp)
@@ -1359,7 +1687,7 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                                     }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "${schedule.formattedTimeRange()} • ${schedule.daysSummary}",
+                                        text = "${schedule.formattedTimeRange()} • ${if (schedule.targetAppPackages.isNotEmpty()) "${schedule.targetAppPackages.size} apps blocked" else schedule.daysSummary}",
                                         color = FocusSecondary,
                                         fontSize = 11.sp
                                     )
@@ -1427,7 +1755,7 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(135.dp))
+        Spacer(modifier = Modifier.height(44.dp))
     }
 
     // Custom Timer Duration Dialog
@@ -1444,6 +1772,8 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(FocusBackground.copy(alpha = 0.88f))
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .clickable { showCustomDurationDialog = false },
             contentAlignment = Alignment.Center
         ) {
@@ -1451,7 +1781,8 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                 colors = CardDefaults.cardColors(containerColor = FocusPanel),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
+                    .fillMaxWidth(0.92f)
+                    .wrapContentHeight()
                     .border(1.5.dp, FocusBorder, RoundedCornerShape(24.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -1459,7 +1790,10 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                     ) {}
             ) {
                 Column(
-                    modifier = Modifier.padding(22.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp)
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
@@ -1611,5 +1945,75 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
             viewModel = viewModel,
             onDismiss = { viewModel.showSessionHistoryModal = false }
         )
+    }
+
+    if (showFloatingPermissionDialog) {
+        Dialog(onDismissRequest = { showFloatingPermissionDialog = false }) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = FocusPanel),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.5.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🏝️", fontSize = 42.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Enable Floating Screen",
+                        color = FocusWhite,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "FocusNow features a floating live countdown island that stays on your screen while you use your allowed apps or do work.\n\nTo float over your screen, Android requires the 'Display over other apps' permission.",
+                        color = FocusSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 19.sp
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showFloatingPermissionDialog = false
+                            PermissionHelper.openOverlaySettings(context)
+                            viewModel.startTimer()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text(
+                            text = "Enable in Settings ⚙️",
+                            color = FocusBackground,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    TextButton(
+                        onClick = {
+                            showFloatingPermissionDialog = false
+                            viewModel.startTimer()
+                        }
+                    ) {
+                        Text(
+                            text = "Start Without Floating",
+                            color = FocusSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
     }
 }

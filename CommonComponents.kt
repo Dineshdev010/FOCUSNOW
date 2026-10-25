@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,83 +33,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusflow.app.model.TaskPriority
 import com.focusflow.app.ui.theme.*
-
-@Composable
-fun FocusShieldLogoIcon(
-    sizeDp: Int = 18,
-    accentColor: Color = FocusAccent
-) {
-    Canvas(modifier = Modifier.size(sizeDp.dp)) {
-        val w = size.width
-        val h = size.height
-
-        // Outer shield contour
-        val shieldPath = Path().apply {
-            moveTo(w * 0.5f, h * 0.10f)
-            lineTo(w * 0.90f, h * 0.25f)
-            quadraticTo(w * 0.90f, h * 0.68f, w * 0.5f, h * 0.92f)
-            quadraticTo(w * 0.10f, h * 0.68f, w * 0.10f, h * 0.25f)
-            close()
-        }
-
-        drawPath(
-            path = shieldPath,
-            color = accentColor.copy(alpha = 0.45f),
-            style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        // Inner glowing lightning bolt
-        val boltPath = Path().apply {
-            moveTo(w * 0.44f, h * 0.26f)
-            lineTo(w * 0.68f, h * 0.26f)
-            lineTo(w * 0.52f, h * 0.46f)
-            lineTo(w * 0.64f, h * 0.46f)
-            lineTo(w * 0.36f, h * 0.78f)
-            lineTo(w * 0.45f, h * 0.55f)
-            lineTo(w * 0.35f, h * 0.55f)
-            close()
-        }
-
-        drawPath(
-            path = boltPath,
-            color = accentColor
-        )
-    }
-}
-
-@Composable
-fun FocusLeafIcon(
-    sizeDp: Int = 24,
-    accentColor: Color = FocusAccent
-) {
-    Canvas(modifier = Modifier.size(sizeDp.dp)) {
-        val w = size.width
-        val h = size.height
-
-        val leafPath = Path().apply {
-            moveTo(w * 0.15f, h * 0.85f)
-            cubicTo(w * 0.05f, h * 0.45f, w * 0.35f, h * 0.08f, w * 0.88f, h * 0.12f)
-            cubicTo(w * 0.92f, h * 0.65f, w * 0.55f, h * 0.95f, w * 0.15f, h * 0.85f)
-            close()
-        }
-
-        drawPath(
-            path = leafPath,
-            color = accentColor
-        )
-
-        // Leaf center vein
-        val veinPath = Path().apply {
-            moveTo(w * 0.15f, h * 0.85f)
-            quadraticTo(w * 0.45f, h * 0.55f, w * 0.88f, h * 0.12f)
-        }
-        drawPath(
-            path = veinPath,
-            color = FocusBackground.copy(alpha = 0.5f),
-            style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
-        )
-    }
-}
 
 @Composable
 fun FocusHourglassFlameIcon(
