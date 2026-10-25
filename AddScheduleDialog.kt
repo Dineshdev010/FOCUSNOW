@@ -53,7 +53,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,6 +92,7 @@ fun AddScheduleDialog(
     var endHour by remember { mutableIntStateOf(editingItem?.endHour ?: 17) }
     var endMinute by remember { mutableIntStateOf(editingItem?.endMinute ?: 0) }
     var selectedDays by remember { mutableStateOf(editingItem?.daysSummary ?: "Mon - Fri") }
+    var showCustomTimePickerFor by remember { mutableStateOf<String?>(null) } // "start", "end", or null
 
     var isAlarmEnabled by remember { mutableStateOf(editingItem?.isAlarmEnabled ?: true) }
     var selectedAlarmSound by remember { mutableStateOf(editingItem?.alarmSound ?: FocusAlarmManager.ALARM_SOUND_ZEN_GONG) }
@@ -476,14 +481,31 @@ fun AddScheduleDialog(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Dual Interactive Time Cards
+                    // Presets for rapid 1-tap scheduling
+                    val startPresets = listOf(
+                        Pair(8, 0) to "8:00",
+                        Pair(9, 0) to "9:00",
+                        Pair(14, 0) to "14:00",
+                        Pair(22, 0) to "22:00"
+                    )
+                    val isStartPreset = startPresets.any { it.first.first == startHour && it.first.second == startMinute }
+
+                    val endPresets = listOf(
+                        Pair(12, 0) to "12:00",
+                        Pair(17, 0) to "17:00",
+                        Pair(20, 0) to "20:00",
+                        Pair(23, 0) to "23:00"
+                    )
+                    val isEndPreset = endPresets.any { it.first.first == endHour && it.first.second == endMinute }
+
+                    val (startDigits, startAmPm) = formatTimeParts(startHour, startMinute)
+                    val (endDigits, endAmPm) = formatTimeParts(endHour, endMinute)
+
+                    // Dual Interactive Time Cards with Presets + Custom Time
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val (startDigits, startAmPm) = formatTimeParts(startHour, startMinute)
-                        val (endDigits, endAmPm) = formatTimeParts(endHour, endMinute)
-
                         // START TIME CARD
                         Card(
                             colors = CardDefaults.cardColors(containerColor = FocusPanelLight),
@@ -494,22 +516,13 @@ fun AddScheduleDialog(
                                 .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    TimePickerDialog(
-                                        context,
-                                        { _, hourOfDay, minute ->
-                                            startHour = hourOfDay
-                                            startMinute = minute
-                                        },
-                                        startHour,
-                                        startMinute,
-                                        false
-                                    ).show()
+                                    showCustomTimePickerFor = "start"
                                 }
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
+                                    .padding(12.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {
                                 Row(
@@ -527,13 +540,13 @@ fun AddScheduleDialog(
                                     Text("🕒", fontSize = 12.sp)
                                 }
 
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
                                 Row(verticalAlignment = Alignment.Bottom) {
                                     Text(
                                         text = startDigits,
                                         color = FocusAccent,
-                                        fontSize = 22.sp,
+                                        fontSize = 20.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         letterSpacing = 0.5.sp
                                     )
@@ -553,19 +566,93 @@ fun AddScheduleDialog(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
+                                // Presets 2x2
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(startPresets[0], startPresets[1]).forEach { (timePair, label) ->
+                                        val isSel = startHour == timePair.first && startMinute == timePair.second
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (isSel) FocusAccent else FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    startHour = timePair.first
+                                                    startMinute = timePair.second
+                                                }
+                                                .padding(vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = if (isSel) FocusBackground else FocusSecondary,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(startPresets[2], startPresets[3]).forEach { (timePair, label) ->
+                                        val isSel = startHour == timePair.first && startMinute == timePair.second
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (isSel) FocusAccent else FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    startHour = timePair.first
+                                                    startMinute = timePair.second
+                                                }
+                                                .padding(vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = if (isSel) FocusBackground else FocusSecondary,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                // Prominent Custom Time Chip
+                                val isCustomActive = !isStartPreset
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(FocusAccent.copy(alpha = 0.12f))
+                                        .background(if (isCustomActive) FocusAccentSoft else FocusPanel)
+                                        .border(
+                                            1.dp,
+                                            if (isCustomActive) FocusAccent else FocusPanelBorder.copy(alpha = 0.5f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            showCustomTimePickerFor = "start"
+                                        }
                                         .padding(vertical = 5.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Tap to Pick Time ✏️",
-                                        color = FocusAccent,
+                                        text = if (isCustomActive) "⏱️ $startDigits $startAmPm ✏️" else "+ Custom Time ⏱️",
+                                        color = if (isCustomActive) FocusAccent else FocusWhite,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -583,22 +670,13 @@ fun AddScheduleDialog(
                                 .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    TimePickerDialog(
-                                        context,
-                                        { _, hourOfDay, minute ->
-                                            endHour = hourOfDay
-                                            endMinute = minute
-                                        },
-                                        endHour,
-                                        endMinute,
-                                        false
-                                    ).show()
+                                    showCustomTimePickerFor = "end"
                                 }
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
+                                    .padding(12.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {
                                 Row(
@@ -616,13 +694,13 @@ fun AddScheduleDialog(
                                     Text("🔔", fontSize = 12.sp)
                                 }
 
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
                                 Row(verticalAlignment = Alignment.Bottom) {
                                     Text(
                                         text = endDigits,
                                         color = FocusAccent,
-                                        fontSize = 22.sp,
+                                        fontSize = 20.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         letterSpacing = 0.5.sp
                                     )
@@ -642,19 +720,93 @@ fun AddScheduleDialog(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
+                                // Presets 2x2
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(endPresets[0], endPresets[1]).forEach { (timePair, label) ->
+                                        val isSel = endHour == timePair.first && endMinute == timePair.second
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (isSel) FocusAccent else FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    endHour = timePair.first
+                                                    endMinute = timePair.second
+                                                }
+                                                .padding(vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = if (isSel) FocusBackground else FocusSecondary,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(endPresets[2], endPresets[3]).forEach { (timePair, label) ->
+                                        val isSel = endHour == timePair.first && endMinute == timePair.second
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (isSel) FocusAccent else FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    endHour = timePair.first
+                                                    endMinute = timePair.second
+                                                }
+                                                .padding(vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = if (isSel) FocusBackground else FocusSecondary,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                // Prominent Custom Time Chip
+                                val isCustomActive = !isEndPreset
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(FocusAccent.copy(alpha = 0.12f))
+                                        .background(if (isCustomActive) FocusAccentSoft else FocusPanel)
+                                        .border(
+                                            1.dp,
+                                            if (isCustomActive) FocusAccent else FocusPanelBorder.copy(alpha = 0.5f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            showCustomTimePickerFor = "end"
+                                        }
                                         .padding(vertical = 5.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Tap to Pick Time ✏️",
-                                        color = FocusAccent,
+                                        text = if (isCustomActive) "⏱️ $endDigits $endAmPm ✏️" else "+ Custom Time ⏱️",
+                                        color = if (isCustomActive) FocusAccent else FocusWhite,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -670,7 +822,7 @@ fun AddScheduleDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf(1 to "+1h", 2 to "+2h", 4 to "+4h", 8 to "+8h").forEach { (hoursToAdd, label) ->
+                        listOf(30 to "+30m", 60 to "+1h", 120 to "+2h", 240 to "+4h", 480 to "+8h").forEach { (minsToAdd, label) ->
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -679,8 +831,10 @@ fun AddScheduleDialog(
                                     .border(1.dp, FocusPanelBorder, RoundedCornerShape(8.dp))
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        endHour = (startHour + hoursToAdd) % 24
-                                        endMinute = startMinute
+                                        val totalStart = startHour * 60 + startMinute
+                                        val targetMin = (totalStart + minsToAdd) % (24 * 60)
+                                        endHour = targetMin / 60
+                                        endMinute = targetMin % 60
                                     }
                                     .padding(vertical = 6.dp),
                                 contentAlignment = Alignment.Center
@@ -1317,6 +1471,718 @@ fun AddScheduleDialog(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+            }
+        }
+
+        // --- CUSTOM TIME PICKER MODAL ---
+        if (showCustomTimePickerFor != null) {
+            val isStart = showCustomTimePickerFor == "start"
+            ScheduleCustomTimePickerDialog(
+                title = if (isStart) "Custom Start Time" else "Custom End Time",
+                initialHour = if (isStart) startHour else endHour,
+                initialMinute = if (isStart) startMinute else endMinute,
+                referenceStartHour = if (!isStart) startHour else null,
+                referenceStartMinute = if (!isStart) startMinute else null,
+                onConfirm = { h, m ->
+                    if (isStart) {
+                        startHour = h
+                        startMinute = m
+                    } else {
+                        endHour = h
+                        endMinute = m
+                    }
+                    showCustomTimePickerFor = null
+                },
+                onDismiss = { showCustomTimePickerFor = null }
+            )
+        }
+    }
+}
+
+/**
+ * High-tech glassmorphic custom time picker allowing precise hour/minute input,
+ * AM/PM toggling, steppers, quick chips, and live duration calculation.
+ */
+@Composable
+fun ScheduleCustomTimePickerDialog(
+    title: String,
+    initialHour: Int,
+    initialMinute: Int,
+    referenceStartHour: Int? = null,
+    referenceStartMinute: Int? = null,
+    onConfirm: (hour: Int, minute: Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    BackHandler { onDismiss() }
+    val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+
+    var selectedHour24 by remember { mutableIntStateOf(initialHour) }
+    var selectedMinute by remember { mutableIntStateOf(initialMinute) }
+
+    // Derive 12-hour values
+    val isPm = selectedHour24 >= 12
+    val hour12 = when {
+        selectedHour24 == 0 -> 12
+        selectedHour24 > 12 -> selectedHour24 - 12
+        else -> selectedHour24
+    }
+
+    var hourInput by remember { mutableStateOf(hour12.toString()) }
+    var minuteInput by remember { mutableStateOf(if (selectedMinute < 10) "0$selectedMinute" else selectedMinute.toString()) }
+
+    fun setHour12AndAmPm(newHour12: Int, pm: Boolean) {
+        val safeHour12 = ((newHour12 - 1) % 12 + 12) % 12 + 1
+        selectedHour24 = when {
+            pm && safeHour12 == 12 -> 12
+            pm -> safeHour12 + 12
+            !pm && safeHour12 == 12 -> 0
+            else -> safeHour12
+        }
+        hourInput = safeHour12.toString()
+    }
+
+    fun setMinuteSafe(newMin: Int) {
+        val safeMin = ((newMin % 60) + 60) % 60
+        selectedMinute = safeMin
+        minuteInput = if (safeMin < 10) "0$safeMin" else safeMin.toString()
+    }
+
+    // Calculated Duration if this is an End Time picker
+    val calculatedDuration = remember(selectedHour24, selectedMinute, referenceStartHour, referenceStartMinute) {
+        if (referenceStartHour != null && referenceStartMinute != null) {
+            val startTotal = referenceStartHour * 60 + referenceStartMinute
+            val endTotal = selectedHour24 * 60 + selectedMinute
+            val diff = if (endTotal >= startTotal) endTotal - startTotal else (24 * 60 - startTotal) + endTotal
+            val h = diff / 60
+            val m = diff % 60
+            when {
+                h > 0 && m > 0 -> "${h}h ${m}m"
+                h > 0 -> "${h}h"
+                else -> "${m}m"
+            }
+        } else null
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FocusBackground.copy(alpha = 0.90f))
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = FocusPanel),
+            shape = RoundedCornerShape(26.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {}
+                .border(
+                    BorderStroke(
+                        1.5.dp,
+                        Brush.verticalGradient(
+                            listOf(FocusAccent.copy(alpha = 0.7f), FocusPanelBorder.copy(alpha = 0.3f))
+                        )
+                    ),
+                    RoundedCornerShape(26.dp)
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(FocusAccent.copy(alpha = 0.15f))
+                                .border(1.dp, FocusAccent.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⏱️", fontSize = 18.sp)
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = title.uppercase(),
+                                color = FocusWhite,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.8.sp
+                            )
+                            Text(
+                                text = "Set exact hours & minutes",
+                                color = FocusSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(FocusPanelLight)
+                            .border(1.dp, FocusPanelBorder.copy(alpha = 0.5f), CircleShape)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDismiss()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("✕", color = FocusSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Interactive Digital Clock Display
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FocusPanelLight),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.5.dp, FocusAccent.copy(alpha = 0.45f), RoundedCornerShape(20.dp))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Hour Display with Steppers
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(FocusPanel)
+                                        .border(1.dp, FocusPanelBorder, CircleShape)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            setHour12AndAmPm(if (hour12 == 12) 1 else hour12 + 1, isPm)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("▲", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = if (hour12 < 10) "0$hour12" else "$hour12",
+                                    color = FocusAccent,
+                                    fontSize = 38.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(FocusPanel)
+                                        .border(1.dp, FocusPanelBorder, CircleShape)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            setHour12AndAmPm(if (hour12 == 1) 12 else hour12 - 1, isPm)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("▼", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("HOUR", color = FocusSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            // Colon Divider
+                            Text(
+                                text = ":",
+                                color = FocusAccent,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(horizontal = 6.dp)
+                            )
+
+                            // Minute Display with Steppers
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(FocusPanel)
+                                        .border(1.dp, FocusPanelBorder, CircleShape)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            setMinuteSafe(selectedMinute + 1)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("▲", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = if (selectedMinute < 10) "0$selectedMinute" else "$selectedMinute",
+                                    color = FocusAccent,
+                                    fontSize = 38.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(FocusPanel)
+                                        .border(1.dp, FocusPanelBorder, CircleShape)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            setMinuteSafe(selectedMinute - 1)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("▼", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("MINUTE", color = FocusSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            // AM / PM Toggle Stack
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (!isPm) FocusAccent else FocusPanel)
+                                        .border(1.dp, if (!isPm) FocusAccent else FocusBorder, RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            setHour12AndAmPm(hour12, false)
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "AM",
+                                        color = if (!isPm) FocusBackground else FocusSecondary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isPm) FocusAccent else FocusPanel)
+                                        .border(1.dp, if (isPm) FocusAccent else FocusBorder, RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            setHour12AndAmPm(hour12, true)
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "PM",
+                                        color = if (isPm) FocusBackground else FocusSecondary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Direct Numeric Typing Option
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Type Exact Digits:",
+                        color = FocusSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = hourInput,
+                            onValueChange = { newVal ->
+                                if (newVal.isEmpty() || (newVal.all { it.isDigit() } && newVal.length <= 2)) {
+                                    hourInput = newVal
+                                    val h = newVal.toIntOrNull()
+                                    if (h != null && h in 1..12) {
+                                        setHour12AndAmPm(h, isPm)
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            textStyle = TextStyle(
+                                color = FocusWhite,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FocusAccent,
+                                unfocusedBorderColor = FocusBorder,
+                                focusedContainerColor = FocusPanelLight,
+                                unfocusedContainerColor = FocusPanelLight
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.width(60.dp).height(44.dp)
+                        )
+
+                        Text(":", color = FocusSecondary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+
+                        OutlinedTextField(
+                            value = minuteInput,
+                            onValueChange = { newVal ->
+                                if (newVal.isEmpty() || (newVal.all { it.isDigit() } && newVal.length <= 2)) {
+                                    minuteInput = newVal
+                                    val m = newVal.toIntOrNull()
+                                    if (m != null && m in 0..59) {
+                                        selectedMinute = m
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            textStyle = TextStyle(
+                                color = FocusWhite,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FocusAccent,
+                                unfocusedBorderColor = FocusBorder,
+                                focusedContainerColor = FocusPanelLight,
+                                unfocusedContainerColor = FocusPanelLight
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.width(60.dp).height(44.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Quick Minute Stepper Pills (-15m, -5m, +5m, +15m)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(-15 to "-15m", -5 to "-5m", 5 to "+5m", 15 to "+15m").forEach { (offset, label) ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(FocusPanelLight)
+                                .border(1.dp, FocusPanelBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    setMinuteSafe(selectedMinute + offset)
+                                }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = FocusWhite,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Quick Hour Chips (1 through 12)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "SELECT HOUR (1 - 12):",
+                        color = FocusSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        (1..12).forEach { h ->
+                            val isSel = hour12 == h
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) FocusAccent else FocusPanelLight)
+                                    .border(1.dp, if (isSel) FocusAccent else FocusBorder, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        setHour12AndAmPm(h, isPm)
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$h",
+                                    color = if (isSel) FocusBackground else FocusWhite,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Quick Minute Chips (:00, :15, :30, :45)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "QUICK MINUTE PRESETS:",
+                        color = FocusSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(0 to ":00", 15 to ":15", 30 to ":30", 45 to ":45").forEach { (m, label) ->
+                            val isSel = selectedMinute == m
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) FocusAccent else FocusPanelLight)
+                                    .border(1.dp, if (isSel) FocusAccent else FocusBorder, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        setMinuteSafe(m)
+                                    }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSel) FocusBackground else FocusWhite,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Relative Duration Helpers (If setting End Time)
+                if (calculatedDuration != null && referenceStartHour != null && referenceStartMinute != null) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(FocusAccent.copy(alpha = 0.12f))
+                            .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "CALCULATED DURATION",
+                                color = FocusSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "⚡ $calculatedDuration Lockout",
+                                color = FocusAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Or Set Duration from Start Time:",
+                            color = FocusSecondary,
+                            fontSize = 9.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                30 to "+30m",
+                                60 to "+1h",
+                                90 to "+1.5h",
+                                120 to "+2h",
+                                180 to "+3h",
+                                240 to "+4h",
+                                360 to "+6h",
+                                480 to "+8h"
+                            ).forEach { (minsToAdd, label) ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(FocusPanelLight)
+                                        .border(1.dp, FocusPanelBorder.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            val totalStart = referenceStartHour * 60 + referenceStartMinute
+                                            val targetMin = (totalStart + minsToAdd) % (24 * 60)
+                                            selectedHour24 = targetMin / 60
+                                            selectedMinute = targetMin % 60
+                                            val newH12 = if (selectedHour24 == 0) 12 else if (selectedHour24 > 12) selectedHour24 - 12 else selectedHour24
+                                            hourInput = newH12.toString()
+                                            minuteInput = if (selectedMinute < 10) "0$selectedMinute" else selectedMinute.toString()
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = FocusAccent,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Fallback System Clock Button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(FocusPanelLight)
+                        .border(1.dp, FocusBorder, RoundedCornerShape(10.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            TimePickerDialog(
+                                context,
+                                { _, hourOfDay, minute ->
+                                    selectedHour24 = hourOfDay
+                                    selectedMinute = minute
+                                    onConfirm(hourOfDay, minute)
+                                },
+                                selectedHour24,
+                                selectedMinute,
+                                false
+                            ).show()
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Open System Clock Dial ⏰",
+                        color = FocusSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Bottom Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = FocusPanelLight),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                    ) {
+                        Text("Cancel", color = FocusSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onConfirm(selectedHour24, selectedMinute)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(46.dp)
+                    ) {
+                        Text(
+                            text = "Apply Custom Time ⚡",
+                            color = FocusBackground,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
