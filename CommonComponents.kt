@@ -7,6 +7,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.sin
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -528,10 +531,20 @@ fun AntiTamperAlertDialog(onClose: () -> Unit) {
     }
 }
 
+private data class ZenFirefly(
+    val xNorm: Float,
+    val yNorm: Float,
+    val sizeDp: Float,
+    val speed: Float,
+    val swayAmp: Float,
+    val colorType: Int // 0: Lime, 1: Emerald, 2: Gold, 3: White
+)
+
 /**
  * Atmospheric Zen Canvas Background
- * Implements living ambient gradient orbs, cosmic stardust twinkling,
- * sacred geometry focus ripples, and luxury cinema vignette.
+ * Implements living radiant ambient orbs, flowing sinusoidal aurora light ribbons,
+ * 24 animated floating firefly particles with soft halos, concentric sacred geometry focus ripples,
+ * futuristic tech dot matrix grid, and luxury cinema vignette.
  * Pure Compose Canvas hardware-accelerated rendering at 60/120fps.
  */
 @Composable
@@ -544,7 +557,7 @@ fun AtmosphericZenBackground(
     // Slow ambient breathing cycle for primary energy aura (6.5s smooth pulse)
     val breathScale by infiniteTransition.animateFloat(
         initialValue = 0.88f,
-        targetValue = 1.22f,
+        targetValue = 1.25f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 6500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -554,8 +567,8 @@ fun AtmosphericZenBackground(
 
     // Gentle horizontal drift for secondary ambient aura (9s loop)
     val driftOffset by infiniteTransition.animateFloat(
-        initialValue = -25f,
-        targetValue = 25f,
+        initialValue = -30f,
+        targetValue = 30f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 9000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -563,7 +576,7 @@ fun AtmosphericZenBackground(
         label = "driftOffset"
     )
 
-    // Continuous smooth rotation for sacred geometry zen ripples (16s cycle)
+    // Continuous smooth rotation & wave phase (16s cycle)
     val wavePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -574,32 +587,44 @@ fun AtmosphericZenBackground(
         label = "wavePhase"
     )
 
-    // Twinkle alpha for cosmic tranquility stardust
-    val twinkleAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.22f,
-        targetValue = 0.82f,
+    // Upward drift progression for floating firefly particles (18s continuous loop)
+    val particleDrift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(durationMillis = 18000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
         ),
-        label = "twinkleAlpha"
+        label = "particleDrift"
     )
 
-    // Stable stardust coordinates (relative positions: X, Y, base size in dp)
-    val stars = remember {
+    // Stable firefly coordinates (relative positions: X, Y, base size in dp, speed, sway, colorType)
+    val fireflies = remember {
         listOf(
-            Triple(0.12f, 0.08f, 1.8f),
-            Triple(0.88f, 0.12f, 2.2f),
-            Triple(0.24f, 0.22f, 1.4f),
-            Triple(0.76f, 0.28f, 2.0f),
-            Triple(0.15f, 0.42f, 1.6f),
-            Triple(0.92f, 0.48f, 1.5f),
-            Triple(0.35f, 0.62f, 1.9f),
-            Triple(0.82f, 0.68f, 2.3f),
-            Triple(0.08f, 0.78f, 1.7f),
-            Triple(0.68f, 0.84f, 1.5f),
-            Triple(0.28f, 0.92f, 2.1f),
-            Triple(0.85f, 0.94f, 1.6f)
+            ZenFirefly(0.10f, 0.12f, 4.5f, 1.0f, 18f, 0),
+            ZenFirefly(0.25f, 0.28f, 3.2f, 0.8f, 22f, 1),
+            ZenFirefly(0.85f, 0.15f, 5.0f, 1.2f, 25f, 0),
+            ZenFirefly(0.70f, 0.32f, 3.8f, 0.7f, 18f, 2),
+            ZenFirefly(0.42f, 0.08f, 6.0f, 1.1f, 14f, 3),
+            ZenFirefly(0.18f, 0.45f, 4.0f, 0.9f, 22f, 1),
+            ZenFirefly(0.92f, 0.52f, 5.5f, 1.3f, 16f, 0),
+            ZenFirefly(0.32f, 0.65f, 3.2f, 0.6f, 24f, 2),
+            ZenFirefly(0.80f, 0.70f, 4.5f, 1.0f, 15f, 1),
+            ZenFirefly(0.14f, 0.82f, 6.2f, 1.4f, 20f, 0),
+            ZenFirefly(0.55f, 0.78f, 3.6f, 0.8f, 18f, 3),
+            ZenFirefly(0.68f, 0.88f, 4.2f, 1.1f, 16f, 2),
+            ZenFirefly(0.08f, 0.60f, 3.2f, 0.7f, 22f, 1),
+            ZenFirefly(0.48f, 0.42f, 5.0f, 1.0f, 19f, 0),
+            ZenFirefly(0.88f, 0.36f, 3.6f, 0.9f, 16f, 3),
+            ZenFirefly(0.28f, 0.92f, 4.8f, 1.2f, 21f, 0),
+            ZenFirefly(0.62f, 0.18f, 4.0f, 0.8f, 17f, 1),
+            ZenFirefly(0.06f, 0.30f, 5.5f, 1.1f, 25f, 2),
+            ZenFirefly(0.78f, 0.05f, 3.2f, 0.6f, 14f, 0),
+            ZenFirefly(0.38f, 0.52f, 4.2f, 1.0f, 18f, 1),
+            ZenFirefly(0.95f, 0.85f, 5.0f, 1.3f, 20f, 2),
+            ZenFirefly(0.52f, 0.95f, 3.6f, 0.7f, 15f, 3),
+            ZenFirefly(0.22f, 0.72f, 4.5f, 1.1f, 22f, 0),
+            ZenFirefly(0.82f, 0.60f, 3.2f, 0.9f, 19f, 1)
         )
     }
 
@@ -608,102 +633,193 @@ fun AtmosphericZenBackground(
             val w = size.width
             val h = size.height
 
-            // 1. Deep luxury obsidian base
-            drawRect(color = FocusBackground)
-
-            // 2. Immersive radial vignette - deepens outer corners
+            // 1. Deep luxury multi-stop obsidian & forest mesh base
             drawRect(
-                brush = Brush.radialGradient(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.Transparent,
-                        Color(0x70000000)
-                    ),
-                    center = Offset(w * 0.5f, h * 0.45f),
-                    radius = (w.coerceAtLeast(h)) * 0.85f
+                        Color(0xFF060A07),
+                        Color(0xFF0F1E13),
+                        Color(0xFF0A140D),
+                        Color(0xFF050805)
+                    )
                 )
             )
 
-            // 3. Primary Glowing Brand Aura Orb (Top-Left / Center)
-            val orb1Radius = (w * 0.72f) * breathScale
+            // 2. Primary Glowing Zenith Light Orb (Top-Center) - Rich Electric Lime
+            val orb1Radius = (w * 0.92f) * breathScale
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        FocusAccent.copy(alpha = 0.13f),
-                        FocusAccent.copy(alpha = 0.05f),
+                        FocusAccent.copy(alpha = 0.38f),
+                        FocusAccent.copy(alpha = 0.16f),
+                        LogoEmerald.copy(alpha = 0.06f),
                         Color.Transparent
                     ),
-                    center = Offset(w * 0.35f + driftOffset, h * 0.18f),
+                    center = Offset(w * 0.38f + driftOffset * 1.5f, h * 0.15f),
                     radius = orb1Radius
                 ),
                 radius = orb1Radius,
-                center = Offset(w * 0.35f + driftOffset, h * 0.18f)
+                center = Offset(w * 0.38f + driftOffset * 1.5f, h * 0.15f)
             )
 
-            // 4. Secondary Emerald Zen Aura Orb (Right-Center)
-            val orb2Radius = (w * 0.62f) * (2.1f - breathScale)
+            // 3. Secondary Emerald Nebula Orb (Center-Right)
+            val orb2Radius = (w * 0.85f) * (2.1f - breathScale)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        LogoEmerald.copy(alpha = 0.09f),
-                        LogoEmerald.copy(alpha = 0.03f),
+                        LogoEmerald.copy(alpha = 0.32f),
+                        LogoEmerald.copy(alpha = 0.14f),
                         Color.Transparent
                     ),
-                    center = Offset(w * 0.82f - driftOffset * 0.6f, h * 0.52f),
+                    center = Offset(w * 0.85f - driftOffset, h * 0.48f),
                     radius = orb2Radius
                 ),
                 radius = orb2Radius,
-                center = Offset(w * 0.82f - driftOffset * 0.6f, h * 0.52f)
+                center = Offset(w * 0.85f - driftOffset, h * 0.48f)
             )
 
-            // 5. Warm Ember Grounding Glow (Bottom-Left)
-            val orb3Radius = w * 0.55f
+            // 4. Tertiary Warm Solar Amber Flare (Bottom-Left)
+            val orb3Radius = w * 0.75f
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        LogoGold.copy(alpha = 0.05f),
+                        LogoGold.copy(alpha = 0.26f),
+                        LogoAmber.copy(alpha = 0.10f),
                         Color.Transparent
                     ),
-                    center = Offset(w * 0.15f, h * 0.88f),
+                    center = Offset(w * 0.15f + driftOffset * 0.7f, h * 0.82f),
                     radius = orb3Radius
                 ),
                 radius = orb3Radius,
-                center = Offset(w * 0.15f, h * 0.88f)
+                center = Offset(w * 0.15f + driftOffset * 0.7f, h * 0.82f)
             )
 
-            // 6. Sacred Geometry Concentric Focus Ripple Rings
-            val waveCenter = Offset(w * 0.5f, h * 0.20f)
-            val waveDash = PathEffect.dashPathEffect(floatArrayOf(5f, 15f), phase = wavePhase)
-            val ringRadii = listOf(w * 0.35f, w * 0.55f, w * 0.80f)
+            // 5. Subtle Isometric Tech Dot Matrix Grid (7 cols x 13 rows)
+            val dotCols = 7
+            val dotRows = 13
+            for (r in 1..dotRows) {
+                for (c in 1..dotCols) {
+                    val dotX = w * (c.toFloat() / (dotCols + 1))
+                    val dotY = h * (r.toFloat() / (dotRows + 1))
+                    val dotDist = hypot(dotX - w * 0.5f, dotY - h * 0.35f)
+                    val dotAlpha = (0.16f - (dotDist / (w * 1.2f)) * 0.10f).coerceIn(0.04f, 0.16f)
+                    drawCircle(
+                        color = FocusAccent.copy(alpha = dotAlpha),
+                        radius = 1.6.dp.toPx(),
+                        center = Offset(dotX, dotY)
+                    )
+                }
+            }
+
+            // 6. Flowing Sinusoidal Aurora Light Ribbon (Upper Canvas)
+            val ribbon1 = Path().apply {
+                moveTo(0f, h * 0.22f)
+                var x = 0f
+                while (x <= w + 20f) {
+                    val y = h * 0.22f + sin((x + wavePhase * 3f) * 0.007f) * 45f + cos((x * 0.004f) - wavePhase * 0.02f) * 20f
+                    lineTo(x, y)
+                    x += 20f
+                }
+            }
+            drawPath(
+                path = ribbon1,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        FocusAccent.copy(alpha = 0.35f),
+                        LogoEmerald.copy(alpha = 0.45f),
+                        LogoGold.copy(alpha = 0.30f),
+                        Color.Transparent
+                    )
+                ),
+                style = Stroke(width = 3.2.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // Flowing Sinusoidal Aurora Light Ribbon (Lower Canvas)
+            val ribbon2 = Path().apply {
+                moveTo(0f, h * 0.68f)
+                var x = 0f
+                while (x <= w + 20f) {
+                    val y = h * 0.68f + cos((x - wavePhase * 2.5f) * 0.006f) * 40f + sin(x * 0.005f) * 25f
+                    lineTo(x, y)
+                    x += 20f
+                }
+            }
+            drawPath(
+                path = ribbon2,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        LogoEmerald.copy(alpha = 0.28f),
+                        FocusAccent.copy(alpha = 0.40f),
+                        LogoGold.copy(alpha = 0.22f),
+                        Color.Transparent
+                    )
+                ),
+                style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // 7. Sacred Geometry Concentric Focus Ripple Rings (Clearly Visible)
+            val waveCenter = Offset(w * 0.5f, h * 0.22f)
+            val waveDash = PathEffect.dashPathEffect(floatArrayOf(6f, 14f), phase = wavePhase * 2f)
+            val ringRadii = listOf(w * 0.25f, w * 0.45f, w * 0.68f, w * 0.95f)
             ringRadii.forEachIndexed { idx, radius ->
-                val ringAlpha = (0.040f - idx * 0.01f).coerceAtLeast(0.012f)
+                val ringAlpha = (0.22f - idx * 0.04f).coerceAtLeast(0.08f)
                 drawCircle(
                     color = FocusAccent.copy(alpha = ringAlpha),
-                    radius = radius * (0.95f + (breathScale - 0.88f) * 0.12f),
+                    radius = radius * (0.95f + (breathScale - 0.88f) * 0.15f),
                     center = waveCenter,
                     style = Stroke(
-                        width = 1.2.dp.toPx(),
+                        width = 1.5.dp.toPx(),
                         pathEffect = waveDash
                     )
                 )
             }
 
-            // 7. Twinkling Tranquility Stardust Constellation
-            stars.forEachIndexed { i, (normX, normY, starSize) ->
-                val starAlpha = if (i % 2 == 0) twinkleAlpha else (1.04f - twinkleAlpha)
-                val effectiveAlpha = (starAlpha * 0.65f).coerceIn(0.12f, 0.75f)
-                drawCircle(
-                    color = FocusWhite.copy(alpha = effectiveAlpha),
-                    radius = starSize.dp.toPx(),
-                    center = Offset(normX * w, normY * h)
-                )
-                if (starSize > 2.0f) {
-                    drawCircle(
-                        color = FocusAccent.copy(alpha = effectiveAlpha * 0.35f),
-                        radius = (starSize * 2.2f).dp.toPx(),
-                        center = Offset(normX * w, normY * h)
-                    )
+            // 8. Animated Floating Zen Energy Fireflies (Drifting & Breathing)
+            fireflies.forEach { firefly ->
+                val currentY = ((firefly.yNorm - particleDrift * firefly.speed) % 1.0f + 1.0f) % 1.0f
+                val currentX = firefly.xNorm * w + sin(wavePhase * 0.05f + firefly.yNorm * 10f) * firefly.swayAmp
+                val pulse = 0.5f + 0.5f * sin(wavePhase * 0.08f + firefly.xNorm * 20f)
+
+                val col = when (firefly.colorType) {
+                    0 -> FocusAccent
+                    1 -> LogoEmerald
+                    2 -> LogoGold
+                    else -> FocusWhite
                 }
+
+                // Outer radiant halo
+                drawCircle(
+                    color = col.copy(alpha = 0.22f * pulse),
+                    radius = (firefly.sizeDp * 2.8f).dp.toPx(),
+                    center = Offset(currentX, currentY * h)
+                )
+                // Inner bright core
+                drawCircle(
+                    color = col.copy(alpha = 0.80f * pulse),
+                    radius = (firefly.sizeDp * 0.9f).dp.toPx(),
+                    center = Offset(currentX, currentY * h)
+                )
+                // Center bright sparkle
+                drawCircle(
+                    color = FocusWhite.copy(alpha = 0.95f * pulse),
+                    radius = (firefly.sizeDp * 0.4f).dp.toPx(),
+                    center = Offset(currentX, currentY * h)
+                )
             }
+
+            // 9. Cinema Radial Vignette - deepens outer corners for contrast
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color(0x66000000)
+                    ),
+                    center = Offset(w * 0.5f, h * 0.45f),
+                    radius = (w.coerceAtLeast(h)) * 0.85f
+                )
+            )
         }
 
         // Host foreground UI content with full transparency support

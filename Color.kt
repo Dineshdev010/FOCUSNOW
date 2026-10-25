@@ -6,17 +6,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
 // Default: "Hourglass Flame" — Electric Lime & Ember Logo Theme (Matches App Logo)
-var FocusBackground by mutableStateOf(Color(0xFF0C100D))      // Deep luxury obsidian dark canvas
-var FocusPanel by mutableStateOf(Color(0xFF141C14))           // Rich dark charcoal container with subtle forest undertone
-var FocusPanelLight by mutableStateOf(Color(0xFF1C271C))      // Elevated interactive card
-var FocusPanelBorder by mutableStateOf(Color(0xFF283827))     // Subtle lime-tinted border
+var FocusBackground by mutableStateOf(Color(0xFF070C08))      // Deep luxury obsidian dark canvas
+var FocusPanel by mutableStateOf(Color(0xDD121C13))           // Frosted dark charcoal container with forest undertone
+var FocusPanelLight by mutableStateOf(Color(0xEB1A271B))      // Elevated frosted interactive glass card
+var FocusPanelBorder by mutableStateOf(Color(0x5584CC16))     // Radiant lime-tinted border
 val FocusBorder get() = FocusPanelBorder
 
 // Primary Logo Accents: Electric Lime (#84CC16) + Ember Gold (#FBBF24) + Emerald (#10B981)
 var FocusAccent by mutableStateOf(Color(0xFF84CC16))          // Electric Lime (matches logo frame & caps)
 var FocusAccentDark by mutableStateOf(Color(0xFF65A30D))      // Deep forest lime
-var FocusAccentSoft by mutableStateOf(Color(0x2484CC16))      // Translucent lime aura
-var FocusAccentGlow by mutableStateOf(Color(0x4084CC16))      // Luminous lime glow
+var FocusAccentSoft by mutableStateOf(Color(0x3584CC16))      // Translucent lime aura
+var FocusAccentGlow by mutableStateOf(Color(0x6084CC16))      // Luminous lime glow
 
 var FocusSecondary by mutableStateOf(Color(0xFF98AA98))       // Soft sage secondary text
 var FocusMuted by mutableStateOf(Color(0xFF687A68))           // Dim forest subtitle
@@ -53,14 +53,14 @@ val CategoryHealth = Color(0xFF6EE7B7)
 fun applyThemeById(themeId: String) {
     when (themeId) {
         "theme_flame", "theme_hourglass", "theme_aurora", "theme_lime", "theme_emerald" -> { // Hourglass Flame (Logo-Matched Default)
-            FocusBackground = Color(0xFF0C100D)
-            FocusPanel = Color(0xFF141C14)
-            FocusPanelLight = Color(0xFF1C271C)
-            FocusPanelBorder = Color(0xFF283829)
+            FocusBackground = Color(0xFF070C08)
+            FocusPanel = Color(0xDD121C13)
+            FocusPanelLight = Color(0xEB1A271B)
+            FocusPanelBorder = Color(0x5584CC16)
             FocusAccent = Color(0xFF84CC16)
             FocusAccentDark = Color(0xFF65A30D)
-            FocusAccentSoft = Color(0x2484CC16)
-            FocusAccentGlow = Color(0x4084CC16)
+            FocusAccentSoft = Color(0x3584CC16)
+            FocusAccentGlow = Color(0x6084CC16)
             FocusSecondary = Color(0xFF98AA98)
             FocusMuted = Color(0xFF687A68)
             FocusWhite = Color(0xFFF7FCF7)

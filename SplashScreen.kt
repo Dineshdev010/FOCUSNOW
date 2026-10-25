@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.FocusAccent
 import com.focusflow.app.ui.theme.FocusAccentGlow
+import com.focusflow.app.ui.theme.LogoEmerald
 import com.focusflow.app.ui.theme.FocusBackground
 import com.focusflow.app.ui.theme.FocusPanelLight
 import com.focusflow.app.ui.theme.FocusSecondary
@@ -67,14 +69,29 @@ fun SplashScreen(viewModel: FocusFlowViewModel) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(32.dp)
         ) {
-            // Animated Hourglass Flame Logo (Matches App Launcher Icon)
+            // Animated Hourglass Flame Logo with Radiant Glowing Aura Halo
             Box(
                 modifier = Modifier
-                    .size(170.dp)
+                    .size(240.dp)
                     .scale(scale.value),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                FocusAccent.copy(alpha = 0.40f),
+                                LogoEmerald.copy(alpha = 0.18f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                }
+                Box(
+                    modifier = Modifier.size(170.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
                     val w = size.width
                     val h = size.height
 
@@ -211,6 +228,7 @@ fun SplashScreen(viewModel: FocusFlowViewModel) {
                         style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
+            }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
