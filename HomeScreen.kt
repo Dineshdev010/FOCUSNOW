@@ -1624,7 +1624,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(44.dp))
+        Spacer(modifier = Modifier.height(72.dp))
     }
 
     val editingApp = viewModel.editingAppLimitItem

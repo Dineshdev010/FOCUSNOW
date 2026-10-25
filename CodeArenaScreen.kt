@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.*
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 
@@ -58,15 +59,15 @@ fun CodeArenaScreen(
     var submitted by remember { mutableStateOf(false) }
     var isCorrect by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp)
-    ) {
+    AtmosphericZenBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp)
+        ) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(
@@ -364,5 +365,6 @@ fun CodeArenaScreen(
         }
 
         Spacer(modifier = Modifier.height(80.dp))
+    }
     }
 }

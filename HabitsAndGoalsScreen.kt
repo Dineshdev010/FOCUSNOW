@@ -1,6 +1,7 @@
 package com.focusflow.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +47,8 @@ fun HabitsAndGoalsScreen(viewModel: FocusFlowViewModel) {
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .background(FocusPanel)
+                    .background(FocusPanel.copy(alpha = 0.90f))
+                    .border(1.dp, FocusBorder.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                     .padding(4.dp)
             ) {
                 // Habits Pill

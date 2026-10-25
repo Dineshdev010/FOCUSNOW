@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -43,6 +45,8 @@ import com.focusflow.app.ui.components.NavFocusIcon
 import com.focusflow.app.ui.components.NavHomeIcon
 import com.focusflow.app.ui.components.NavProgressIcon
 import com.focusflow.app.ui.components.NavTasksIcon
+import com.focusflow.app.ui.components.NavHabitsIcon
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.components.AntiTamperAlertDialog
 import com.focusflow.app.ui.screens.AchievementsScreen
 import com.focusflow.app.ui.screens.AddScheduleDialog
@@ -503,116 +507,139 @@ class MainActivity : ComponentActivity() {
 fun FocusFlowMainApp(viewModel: FocusFlowViewModel) {
     val haptic = LocalHapticFeedback.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
-    ) {
-        if (viewModel.isEmergencyPassActive) {
+    AtmosphericZenBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            if (viewModel.isEmergencyPassActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(androidx.compose.ui.graphics.Color(0xFF261907))
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⚡ Emergency Pass Active: ${viewModel.emergencyPassApp}",
+                            color = androidx.compose.ui.graphics.Color(0xFFF59E0B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${viewModel.emergencyPassSecondsLeft}s left",
+                            color = androidx.compose.ui.graphics.Color(0xFFF59E0B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            }
+
+            // Active Screen Content (floats seamlessly over animated ambient background)
+            Box(modifier = Modifier.weight(1f)) {
+                when (viewModel.selectedTab) {
+                    "Home" -> HomeScreen(viewModel)
+                    "Focus" -> FocusScreen(viewModel)
+                    "Tasks" -> TasksScreen(viewModel)
+                    "Habits & Goals", "Habits" -> HabitsAndGoalsScreen(viewModel)
+                    "Progress" -> ProgressScreen(viewModel)
+                    else -> HomeScreen(viewModel)
+                }
+            }
+
+            // Floating Frosted Glass Dock with Active Glow Indicators
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(androidx.compose.ui.graphics.Color(0xFF261907))
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .navigationBarsPadding()
+                    .padding(start = 14.dp, end = 14.dp, bottom = 8.dp, top = 2.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "⚡ Emergency Pass Active: ${viewModel.emergencyPassApp}",
-                        color = androidx.compose.ui.graphics.Color(0xFFF59E0B),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${viewModel.emergencyPassSecondsLeft}s left",
-                        color = androidx.compose.ui.graphics.Color(0xFFF59E0B),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-
-        // Active Screen Content
-        Box(modifier = Modifier.weight(1f)) {
-            when (viewModel.selectedTab) {
-                "Home" -> HomeScreen(viewModel)
-                "Focus" -> FocusScreen(viewModel)
-                "Tasks" -> TasksScreen(viewModel)
-                "Habits & Goals", "Habits" -> HabitsAndGoalsScreen(viewModel)
-                "Progress" -> ProgressScreen(viewModel)
-                else -> HomeScreen(viewModel)
-            }
-        }
-
-        // Bottom Navigation Bar with crisp divider
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(FocusBorder.copy(alpha = 0.5f))
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(FocusPanel)
-                .navigationBarsPadding()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val tabs = listOf(
-                "Home" to "Home",
-                "Focus" to "Focus",
-                "Tasks" to "Tasks",
-                "Habits & Goals" to "Habits",
-                "Progress" to "Progress"
-            )
-
-            tabs.forEach { (tabKey, displayLabel) ->
-                val isSelected = viewModel.selectedTab == tabKey || (tabKey == "Habits & Goals" && viewModel.selectedTab == "Habits")
-                val itemColor by animateColorAsState(
-                    targetValue = if (isSelected) FocusAccent else FocusSecondary,
-                    label = "tabColor"
-                )
-
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.selectedTab = tabKey
-                        }
-                        .padding(vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        when (tabKey) {
-                            "Home" -> NavHomeIcon(tint = itemColor)
-                            "Focus" -> NavFocusIcon(tint = itemColor)
-                            "Tasks" -> NavTasksIcon(tint = itemColor)
-                            "Habits & Goals" -> Text("⚡", fontSize = 16.sp)
-                            "Progress" -> NavProgressIcon(tint = itemColor)
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = displayLabel,
-                            color = itemColor,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(FocusPanel.copy(alpha = 0.90f))
+                        .border(
+                            width = 1.dp,
+                            color = FocusBorder.copy(alpha = 0.65f),
+                            shape = RoundedCornerShape(26.dp)
                         )
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val tabs = listOf(
+                            "Home" to "Home",
+                            "Focus" to "Focus",
+                            "Tasks" to "Tasks",
+                            "Habits & Goals" to "Habits",
+                            "Progress" to "Progress"
+                        )
+
+                        tabs.forEach { (tabKey, displayLabel) ->
+                            val isSelected = viewModel.selectedTab == tabKey || (tabKey == "Habits & Goals" && viewModel.selectedTab == "Habits")
+                            val itemColor by animateColorAsState(
+                                targetValue = if (isSelected) FocusAccent else FocusSecondary,
+                                label = "tabColor"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(if (isSelected) FocusAccent.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent)
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.selectedTab = tabKey
+                                    }
+                                    .padding(vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    when (tabKey) {
+                                        "Home" -> NavHomeIcon(tint = itemColor)
+                                        "Focus" -> NavFocusIcon(tint = itemColor)
+                                        "Tasks" -> NavTasksIcon(tint = itemColor)
+                                        "Habits & Goals" -> NavHabitsIcon(tint = itemColor)
+                                        "Progress" -> NavProgressIcon(tint = itemColor)
+                                    }
+
+                                    Spacer(modifier = Modifier.height(3.dp))
+
+                                    Text(
+                                        text = displayLabel,
+                                        color = itemColor,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+
+                                    if (isSelected) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(width = 12.dp, height = 2.dp)
+                                                .clip(RoundedCornerShape(1.dp))
+                                                .background(FocusAccent)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

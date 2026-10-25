@@ -1,5 +1,12 @@
 package com.focusflow.app.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,12 +27,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -353,6 +364,22 @@ fun NavProgressIcon(tint: Color = FocusSecondary) {
 }
 
 @Composable
+fun NavHabitsIcon(tint: Color = FocusSecondary) {
+    Canvas(modifier = Modifier.size(20.dp)) {
+        val path = Path().apply {
+            moveTo(size.width * 0.58f, size.height * 0.10f)
+            lineTo(size.width * 0.22f, size.height * 0.52f)
+            lineTo(size.width * 0.50f, size.height * 0.52f)
+            lineTo(size.width * 0.42f, size.height * 0.90f)
+            lineTo(size.width * 0.78f, size.height * 0.46f)
+            lineTo(size.width * 0.52f, size.height * 0.46f)
+            close()
+        }
+        drawPath(path = path, color = tint)
+    }
+}
+
+@Composable
 fun GoalSelectorDialog(
     currentGoal: String,
     onGoalSelected: (String) -> Unit,
@@ -498,5 +525,188 @@ fun AntiTamperAlertDialog(onClose: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Atmospheric Zen Canvas Background
+ * Implements living ambient gradient orbs, cosmic stardust twinkling,
+ * sacred geometry focus ripples, and luxury cinema vignette.
+ * Pure Compose Canvas hardware-accelerated rendering at 60/120fps.
+ */
+@Composable
+fun AtmosphericZenBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "AtmosphericAura")
+
+    // Slow ambient breathing cycle for primary energy aura (6.5s smooth pulse)
+    val breathScale by infiniteTransition.animateFloat(
+        initialValue = 0.88f,
+        targetValue = 1.22f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 6500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathScale"
+    )
+
+    // Gentle horizontal drift for secondary ambient aura (9s loop)
+    val driftOffset by infiniteTransition.animateFloat(
+        initialValue = -25f,
+        targetValue = 25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 9000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "driftOffset"
+    )
+
+    // Continuous smooth rotation for sacred geometry zen ripples (16s cycle)
+    val wavePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 16000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wavePhase"
+    )
+
+    // Twinkle alpha for cosmic tranquility stardust
+    val twinkleAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.22f,
+        targetValue = 0.82f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "twinkleAlpha"
+    )
+
+    // Stable stardust coordinates (relative positions: X, Y, base size in dp)
+    val stars = remember {
+        listOf(
+            Triple(0.12f, 0.08f, 1.8f),
+            Triple(0.88f, 0.12f, 2.2f),
+            Triple(0.24f, 0.22f, 1.4f),
+            Triple(0.76f, 0.28f, 2.0f),
+            Triple(0.15f, 0.42f, 1.6f),
+            Triple(0.92f, 0.48f, 1.5f),
+            Triple(0.35f, 0.62f, 1.9f),
+            Triple(0.82f, 0.68f, 2.3f),
+            Triple(0.08f, 0.78f, 1.7f),
+            Triple(0.68f, 0.84f, 1.5f),
+            Triple(0.28f, 0.92f, 2.1f),
+            Triple(0.85f, 0.94f, 1.6f)
+        )
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+
+            // 1. Deep luxury obsidian base
+            drawRect(color = FocusBackground)
+
+            // 2. Immersive radial vignette - deepens outer corners
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color(0x70000000)
+                    ),
+                    center = Offset(w * 0.5f, h * 0.45f),
+                    radius = (w.coerceAtLeast(h)) * 0.85f
+                )
+            )
+
+            // 3. Primary Glowing Brand Aura Orb (Top-Left / Center)
+            val orb1Radius = (w * 0.72f) * breathScale
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        FocusAccent.copy(alpha = 0.13f),
+                        FocusAccent.copy(alpha = 0.05f),
+                        Color.Transparent
+                    ),
+                    center = Offset(w * 0.35f + driftOffset, h * 0.18f),
+                    radius = orb1Radius
+                ),
+                radius = orb1Radius,
+                center = Offset(w * 0.35f + driftOffset, h * 0.18f)
+            )
+
+            // 4. Secondary Emerald Zen Aura Orb (Right-Center)
+            val orb2Radius = (w * 0.62f) * (2.1f - breathScale)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        LogoEmerald.copy(alpha = 0.09f),
+                        LogoEmerald.copy(alpha = 0.03f),
+                        Color.Transparent
+                    ),
+                    center = Offset(w * 0.82f - driftOffset * 0.6f, h * 0.52f),
+                    radius = orb2Radius
+                ),
+                radius = orb2Radius,
+                center = Offset(w * 0.82f - driftOffset * 0.6f, h * 0.52f)
+            )
+
+            // 5. Warm Ember Grounding Glow (Bottom-Left)
+            val orb3Radius = w * 0.55f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        LogoGold.copy(alpha = 0.05f),
+                        Color.Transparent
+                    ),
+                    center = Offset(w * 0.15f, h * 0.88f),
+                    radius = orb3Radius
+                ),
+                radius = orb3Radius,
+                center = Offset(w * 0.15f, h * 0.88f)
+            )
+
+            // 6. Sacred Geometry Concentric Focus Ripple Rings
+            val waveCenter = Offset(w * 0.5f, h * 0.20f)
+            val waveDash = PathEffect.dashPathEffect(floatArrayOf(5f, 15f), phase = wavePhase)
+            val ringRadii = listOf(w * 0.35f, w * 0.55f, w * 0.80f)
+            ringRadii.forEachIndexed { idx, radius ->
+                val ringAlpha = (0.040f - idx * 0.01f).coerceAtLeast(0.012f)
+                drawCircle(
+                    color = FocusAccent.copy(alpha = ringAlpha),
+                    radius = radius * (0.95f + (breathScale - 0.88f) * 0.12f),
+                    center = waveCenter,
+                    style = Stroke(
+                        width = 1.2.dp.toPx(),
+                        pathEffect = waveDash
+                    )
+                )
+            }
+
+            // 7. Twinkling Tranquility Stardust Constellation
+            stars.forEachIndexed { i, (normX, normY, starSize) ->
+                val starAlpha = if (i % 2 == 0) twinkleAlpha else (1.04f - twinkleAlpha)
+                val effectiveAlpha = (starAlpha * 0.65f).coerceIn(0.12f, 0.75f)
+                drawCircle(
+                    color = FocusWhite.copy(alpha = effectiveAlpha),
+                    radius = starSize.dp.toPx(),
+                    center = Offset(normX * w, normY * h)
+                )
+                if (starSize > 2.0f) {
+                    drawCircle(
+                        color = FocusAccent.copy(alpha = effectiveAlpha * 0.35f),
+                        radius = (starSize * 2.2f).dp.toPx(),
+                        center = Offset(normX * w, normY * h)
+                    )
+                }
+            }
+        }
+
+        // Host foreground UI content with full transparency support
+        content()
     }
 }

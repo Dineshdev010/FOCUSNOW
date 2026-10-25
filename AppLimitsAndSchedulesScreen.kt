@@ -64,6 +64,7 @@ import androidx.compose.ui.window.Dialog
 import com.focusflow.app.model.BlockedApp
 import com.focusflow.app.model.CategoryBudget
 import com.focusflow.app.model.FocusSchedule
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.*
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 import java.util.Calendar
@@ -94,13 +95,13 @@ fun AppLimitsAndSchedulesScreen(
         onClose()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
+    AtmosphericZenBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
         // --- TOP NAVIGATION HEADER ---
         Row(
             modifier = Modifier
@@ -828,6 +829,7 @@ fun AppLimitsAndSchedulesScreen(
 
             Spacer(modifier = Modifier.height(44.dp))
         }
+    }
     }
 
     // --- CUSTOM APP TIME LIMIT DIALOG ---

@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.focusflow.app.model.Achievement
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.*
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 import java.util.Locale
@@ -83,13 +84,13 @@ fun ProfileScreen(
         onClose()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
+    AtmosphericZenBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
         // --- TOP NAVIGATION APP BAR ---
         Row(
             modifier = Modifier
@@ -813,6 +814,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(44.dp))
         }
+    }
     }
 
     // --- INTERACTIVE EDIT PROFILE DIALOG ---

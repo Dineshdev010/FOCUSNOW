@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.*
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 
@@ -63,13 +64,13 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
         onClose()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
+    AtmosphericZenBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
         // Sticky Header
         Row(
             modifier = Modifier
@@ -907,6 +908,7 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(44.dp))
         }
+    }
     }
 }
 

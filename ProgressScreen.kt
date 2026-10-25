@@ -1416,7 +1416,8 @@ fun RegainHabitResistanceCard(stats: HabitResistanceStats) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(FocusBackground)
+                    .background(FocusPanelLight)
+                    .border(1.dp, FocusBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                     .padding(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2693,6 +2694,6 @@ fun DoomscrollDefenseRadarCard(stats: List<DoomscrollDefenseStat>) {
             }
         }
 
-        Spacer(modifier = Modifier.height(44.dp))
+        Spacer(modifier = Modifier.height(72.dp))
     }
 }

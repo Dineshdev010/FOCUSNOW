@@ -59,6 +59,7 @@ import com.focusflow.app.model.Achievement
 import com.focusflow.app.model.AchievementTier
 import com.focusflow.app.model.DailyChallenge
 import com.focusflow.app.model.WeeklyChallenge
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.*
 import com.focusflow.app.viewmodel.FocusFlowViewModel
 import kotlinx.coroutines.delay
@@ -84,13 +85,13 @@ fun AchievementsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit) {
         onClose()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
+    AtmosphericZenBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
         // Sticky Header with close
         Row(
             modifier = Modifier
@@ -317,6 +318,7 @@ fun AchievementsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit) {
 
             Spacer(modifier = Modifier.height(80.dp))
         }
+    }
     }
 }
 

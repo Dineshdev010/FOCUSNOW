@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.focusflow.app.ui.components.AtmosphericZenBackground
 import com.focusflow.app.ui.theme.FocusAccent
 import com.focusflow.app.ui.theme.FocusAccentGlow
 import com.focusflow.app.ui.theme.FocusBackground
@@ -56,12 +57,11 @@ fun SplashScreen(viewModel: FocusFlowViewModel) {
         viewModel.onSplashFinished()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FocusBackground),
-        contentAlignment = Alignment.Center
-    ) {
+    AtmosphericZenBackground {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -258,4 +258,5 @@ fun SplashScreen(viewModel: FocusFlowViewModel) {
             )
         }
     }
+}
 }
