@@ -9,6 +9,7 @@ import com.focusflow.app.widget.FocusFlowWidgetProvider
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -98,7 +99,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
     ) {
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Header with Brand and Top Actions
+        // Header with Brand and Top Actions (Responsive for all phone screens)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -108,36 +109,36 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 // Streak & Coin Capsule -> Opens Rewards Store
                 Box(
                     modifier = Modifier
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(17.dp))
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(FocusPanel)
-                        .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(17.dp))
+                        .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             viewModel.showRewardsStoreModal = true
                         }
-                        .padding(horizontal = 9.dp),
+                        .padding(horizontal = 7.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🔥", fontSize = 11.sp)
-                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("🔥", fontSize = 10.sp)
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "${viewModel.streakDays}d",
                             color = FocusAccent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text("•", color = FocusBorder, fontSize = 10.sp)
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text("🪙", fontSize = 11.sp)
                         Spacer(modifier = Modifier.width(3.dp))
+                        Text("•", color = FocusBorder, fontSize = 9.sp)
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("🪙", fontSize = 10.sp)
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "${viewModel.focusCoins}",
                             color = FocusAccent,
@@ -150,7 +151,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                 // Search Action
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(FocusPanel)
                         .border(1.dp, FocusBorder, CircleShape)
@@ -160,29 +161,13 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🔍", fontSize = 13.sp)
+                    Text("🔍", fontSize = 12.sp)
                 }
 
-                // Profile Avatar Action
+                // Settings Action (Prominent - guaranteed visible on all phone widths)
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(FocusPanelLight)
-                        .border(1.2.dp, FocusAccent.copy(alpha = 0.6f), CircleShape)
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.showProfileScreen = true
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(viewModel.userAvatar, fontSize = 14.sp)
-                }
-
-                // Settings Action
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(FocusPanel)
                         .border(1.dp, FocusBorder, CircleShape)
@@ -193,6 +178,22 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text("⚙️", fontSize = 13.sp)
+                }
+
+                // Profile Avatar Action
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(FocusPanelLight)
+                        .border(1.2.dp, FocusAccent.copy(alpha = 0.6f), CircleShape)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showProfileScreen = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(viewModel.userAvatar, fontSize = 13.sp)
                 }
             }
         }
@@ -213,7 +214,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
             fontWeight = FontWeight.Bold
         )
 
-        // Goal, Shield, & Mind Puzzle Pills (Horizontally scrollable for all screen widths)
+        // Goal, Shield, Settings & Mind Puzzle Pills (Horizontally scrollable for all screen widths)
         Spacer(modifier = Modifier.height(10.dp))
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -247,6 +248,45 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     color = FocusAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // Quick Settings Access Pill (Guaranteed 100% visible on every phone)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(FocusPanelLight)
+                    .border(1.dp, FocusBorder, RoundedCornerShape(10.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.showSettingsScreen = true
+                    }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    "⚙️ Settings",
+                    color = FocusAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(FocusPanelLight)
+                    .border(1.dp, FocusAccent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.showCreateHabitDialog = true
+                    }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    "⚡ Add Routine",
+                    color = FocusAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -1032,6 +1072,10 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 5.dp)
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.openScheduleForEditing(schedule)
+                    }
                     .then(
                         if (isActiveNow) {
                             Modifier.border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
@@ -1462,13 +1506,30 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                 fontWeight = FontWeight.Bold
             )
 
-            Text(
-                text = "Manage ⚡",
-                color = FocusAccent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { viewModel.selectedTab = "Habits & Goals" }
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(FocusAccent.copy(alpha = 0.18f))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showCreateHabitDialog = true
+                        }
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                ) {
+                    Text("+ Add Habit", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Manage ⚡",
+                    color = FocusSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { viewModel.selectedTab = "Habits & Goals" }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -1481,12 +1542,15 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
-                    .clickable { viewModel.selectedTab = "Habits & Goals" }
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.showCreateHabitDialog = true
+                    }
             ) {
                 Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("⚡", fontSize = 20.sp)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("No habits set yet. Tap to configure daily routines.", color = FocusSecondary, fontSize = 12.sp)
+                    Text("No habits set yet. Tap to add your first routine!", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         } else {
@@ -1511,10 +1575,10 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                                 .clip(CircleShape)
                                 .background(if (isDone) FocusAccent else FocusPanel)
                                 .border(1.5.dp, if (isDone) FocusAccent else FocusBorder, CircleShape)
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    viewModel.toggleHabitToday(habit.id)
-                                },
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.toggleHabitToday(habit.id)
+                            },
                             contentAlignment = Alignment.Center
                         ) {
                             if (isDone) {
@@ -1542,6 +1606,29 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                             )
                         }
                     }
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = FocusPanel.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, FocusBorder.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.showCreateHabitDialog = true
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("+ Add New Habit Routine", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -1636,6 +1723,13 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                 viewModel.editingAppLimitItem = null
             },
             onDismiss = { viewModel.editingAppLimitItem = null }
+        )
+    }
+
+    if (viewModel.showCreateHabitDialog) {
+        CreateHabitDialog(
+            viewModel = viewModel,
+            onDismiss = { viewModel.showCreateHabitDialog = false }
         )
     }
 }

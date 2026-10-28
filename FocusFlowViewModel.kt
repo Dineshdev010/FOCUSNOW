@@ -1,6 +1,7 @@
 package com.focusflow.app.viewmodel
 
 import android.app.Application
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -16,6 +17,7 @@ import androidx.lifecycle.viewModelScope
 import com.focusflow.app.data.FocusFlowRepository
 import com.focusflow.app.model.*
 import com.focusflow.app.util.FocusAlarmManager
+import com.focusflow.app.util.FocusNotificationHelper
 import com.focusflow.app.util.FocusSoundManager
 import com.focusflow.app.util.PermissionHelper
 import com.focusflow.app.widget.FocusFlowWidgetProvider
@@ -36,7 +38,7 @@ data class TimerMode(
 )
 
 class FocusFlowViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = FocusFlowRepository(application.applicationContext)
+    val repository = FocusFlowRepository(application.applicationContext)
 
     // Flow Stage (Splash -> Onboarding -> Main)
     var appStage by mutableStateOf(AppStage.SPLASH)
@@ -842,6 +844,29 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         showAddScheduleModal = true
     }
 
+    fun openNewScheduleWithPreset(
+        name: String,
+        emoji: String,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        daysSummary: String
+    ) {
+        editingScheduleItem = FocusSchedule(
+            id = "", // Empty ID indicates new schedule pre-filled with preset
+            name = name,
+            emoji = emoji,
+            startHour = startHour,
+            startMinute = startMinute,
+            endHour = endHour,
+            endMinute = endMinute,
+            daysSummary = daysSummary,
+            isEnabled = true
+        )
+        showAddScheduleModal = true
+    }
+
     fun deleteFocusSchedule(id: String) {
         FocusAlarmManager.cancelRoutineAlarm(getApplication(), id)
         repository.deleteFocusSchedule(id)
@@ -971,8 +996,8 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             p.contains("whatsapp") || p.contains("telegram") || l.contains("message") -> "Messaging"
             p.contains("chrome") || l.contains("browser") -> "Web Browsers"
             p.contains("spotify") || l.contains("music") -> "Audio & Music"
-            isEducationalApp(pkg) -> "Education & Learning"
-            isOfficeOrWorkspaceApp(pkg) -> "Productivity & Office"
+            repository.isEducationalApp(pkg) -> "Education & Learning"
+            repository.isOfficeOrWorkspaceApp(pkg) -> "Productivity & Office"
             l.contains("game") -> "Games"
             else -> "Installed Apps"
         }
@@ -1431,7 +1456,7 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         }
         for (app in blockedApps) {
             if (list.size >= 4) break
-            if (list.none { it.name.contains(app.name, ignoreCase = true) } && isPackageInstalled(app.packageName)) {
+            if (list.none { it.platform.contains(app.name, ignoreCase = true) } && isPackageInstalled(app.packageName)) {
                 val count = (app.opensToday * 2).coerceAtLeast(3)
                 list.add(DoomscrollDefenseStat(app.name, app.iconEmoji, count, 0f, "${count * 3}m saved", 0xFF6366F1))
             }
@@ -1440,8 +1465,8 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
             val web = (blocked * 0.8f).toInt() + 6
             list.add(DoomscrollDefenseStat("Web Feeds", "🌐", web, 0f, "${(web * 3.0f).toInt()}m saved", 0xFF10B981))
         }
-        val total = list.sumOf { it.interceptCount }.coerceAtLeast(1).toFloat()
-        return list.map { it.copy(percent = it.interceptCount / total) }
+        val total = list.sumOf { it.count }.coerceAtLeast(1).toFloat()
+        return list.map { it.copy(percent = it.count / total) }
     }
 
     fun getDopamineTrendHistory(): List<DopamineTrendPoint> {
@@ -1845,13 +1870,14 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     // --- HABIT MANAGEMENT ---
-    fun addHabit(title: String, description: String = "", targetDaysPerWeek: Int = 7) {
+    fun addHabit(title: String, description: String = "", targetDaysPerWeek: Int = 7, emoji: String = "⚡") {
         if (title.isBlank()) return
         val daysList = (1..targetDaysPerWeek.coerceIn(1, 7)).toList()
         val newHabit = HabitItem(
             id = "habit_${System.currentTimeMillis()}",
             title = title.trim(),
             description = description.trim(),
+            emoji = emoji.ifBlank { "⚡" },
             frequencySummary = if (targetDaysPerWeek >= 7) "Daily" else "${targetDaysPerWeek}x / Week",
             scheduledDays = daysList
         )
@@ -1859,6 +1885,7 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
         current.add(0, newHabit)
         habits = current
         repository.saveHabits(current)
+        recalculateGoalsProgress()
         showCreateHabitDialog = false
     }
 

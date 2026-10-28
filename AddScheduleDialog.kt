@@ -39,6 +39,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -83,20 +84,20 @@ fun AddScheduleDialog(
     val context = LocalContext.current
 
     val editingItem = viewModel.editingScheduleItem
-    val isEditing = editingItem != null
+    val isEditing = editingItem != null && editingItem.id.isNotEmpty()
 
-    var routineName by remember { mutableStateOf(editingItem?.name ?: "Deep Work Sprint") }
-    var selectedEmoji by remember { mutableStateOf(editingItem?.emoji ?: "💼") }
-    var startHour by remember { mutableIntStateOf(editingItem?.startHour ?: 9) }
-    var startMinute by remember { mutableIntStateOf(editingItem?.startMinute ?: 0) }
-    var endHour by remember { mutableIntStateOf(editingItem?.endHour ?: 17) }
-    var endMinute by remember { mutableIntStateOf(editingItem?.endMinute ?: 0) }
-    var selectedDays by remember { mutableStateOf(editingItem?.daysSummary ?: "Mon - Fri") }
+    var routineName by remember(editingItem?.id) { mutableStateOf(editingItem?.name ?: "Deep Work Sprint") }
+    var selectedEmoji by remember(editingItem?.id) { mutableStateOf(editingItem?.emoji ?: "💼") }
+    var startHour by remember(editingItem?.id) { mutableIntStateOf(editingItem?.startHour ?: 9) }
+    var startMinute by remember(editingItem?.id) { mutableIntStateOf(editingItem?.startMinute ?: 0) }
+    var endHour by remember(editingItem?.id) { mutableIntStateOf(editingItem?.endHour ?: 17) }
+    var endMinute by remember(editingItem?.id) { mutableIntStateOf(editingItem?.endMinute ?: 0) }
+    var selectedDays by remember(editingItem?.id) { mutableStateOf(editingItem?.daysSummary ?: "Mon - Fri") }
     var showCustomTimePickerFor by remember { mutableStateOf<String?>(null) } // "start", "end", or null
 
-    var isAlarmEnabled by remember { mutableStateOf(editingItem?.isAlarmEnabled ?: true) }
-    var selectedAlarmSound by remember { mutableStateOf(editingItem?.alarmSound ?: FocusAlarmManager.ALARM_SOUND_ZEN_GONG) }
-    var isVibrateEnabled by remember { mutableStateOf(editingItem?.isVibrateEnabled ?: true) }
+    var isAlarmEnabled by remember(editingItem?.id) { mutableStateOf(editingItem?.isAlarmEnabled ?: true) }
+    var selectedAlarmSound by remember(editingItem?.id) { mutableStateOf(editingItem?.alarmSound ?: FocusAlarmManager.ALARM_SOUND_ZEN_GONG) }
+    var isVibrateEnabled by remember(editingItem?.id) { mutableStateOf(editingItem?.isVibrateEnabled ?: true) }
     var isTestingAlarm by remember { mutableStateOf(false) }
 
     var showEmojiPalette by remember { mutableStateOf(false) }
@@ -111,7 +112,7 @@ fun AddScheduleDialog(
     val allRoutineApps = remember { viewModel.getAvailableRoutineApps() }
 
     // Pre-populate blocked apps
-    val initialSelectedApps = remember {
+    val initialSelectedApps = remember(editingItem?.id) {
         if (editingItem != null && editingItem.targetAppPackages.isNotEmpty()) {
             editingItem.targetAppPackages.toSet()
         } else {
@@ -119,8 +120,26 @@ fun AddScheduleDialog(
                 .map { it.packageName }.toSet()
         }
     }
-    var selectedAppPackages by remember { mutableStateOf(initialSelectedApps) }
+    var selectedAppPackages by remember(editingItem?.id) { mutableStateOf(initialSelectedApps) }
     var appSearchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(editingItem) {
+        if (editingItem != null) {
+            routineName = editingItem.name
+            selectedEmoji = editingItem.emoji
+            startHour = editingItem.startHour
+            startMinute = editingItem.startMinute
+            endHour = editingItem.endHour
+            endMinute = editingItem.endMinute
+            selectedDays = editingItem.daysSummary
+            isAlarmEnabled = editingItem.isAlarmEnabled
+            selectedAlarmSound = editingItem.alarmSound
+            isVibrateEnabled = editingItem.isVibrateEnabled
+            if (editingItem.targetAppPackages.isNotEmpty()) {
+                selectedAppPackages = editingItem.targetAppPackages.toSet()
+            }
+        }
+    }
 
     val emojis = listOf("💼", "📚", "🌙", "🧘", "💻", "🎨", "⚡", "🎯", "🔬", "🚀", "✍️", "☕")
     val daysPresets = listOf("Mon - Fri", "Daily", "Mon - Sat", "Weekends")
@@ -190,7 +209,10 @@ fun AddScheduleDialog(
             .background(FocusBackground.copy(alpha = 0.95f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onClose() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClose() },
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -542,27 +564,79 @@ fun AddScheduleDialog(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Text(
-                                        text = startDigits,
-                                        color = FocusAccent,
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(FocusAccent.copy(alpha = 0.2f))
-                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.Bottom,
+                                        modifier = Modifier.clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            TimePickerDialog(
+                                                context,
+                                                { _, h, m ->
+                                                    startHour = h
+                                                    startMinute = m
+                                                },
+                                                startHour,
+                                                startMinute,
+                                                false
+                                            ).show()
+                                        }
                                     ) {
                                         Text(
-                                            text = startAmPm,
+                                            text = startDigits,
                                             color = FocusAccent,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 0.5.sp
                                         )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(FocusAccent.copy(alpha = 0.2f))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = startAmPm,
+                                                color = FocusAccent,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    val total = ((startHour * 60 + startMinute - 30) + 24 * 60) % (24 * 60)
+                                                    startHour = total / 60
+                                                    startMinute = total % 60
+                                                }
+                                                .padding(horizontal = 5.dp, vertical = 3.dp)
+                                        ) {
+                                            Text("-30m", color = FocusSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    val total = (startHour * 60 + startMinute + 30) % (24 * 60)
+                                                    startHour = total / 60
+                                                    startMinute = total % 60
+                                                }
+                                                .padding(horizontal = 5.dp, vertical = 3.dp)
+                                        ) {
+                                            Text("+30m", color = FocusAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
 
@@ -696,27 +770,79 @@ fun AddScheduleDialog(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Text(
-                                        text = endDigits,
-                                        color = FocusAccent,
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(FocusAccent.copy(alpha = 0.2f))
-                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.Bottom,
+                                        modifier = Modifier.clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            TimePickerDialog(
+                                                context,
+                                                { _, h, m ->
+                                                    endHour = h
+                                                    endMinute = m
+                                                },
+                                                endHour,
+                                                endMinute,
+                                                false
+                                            ).show()
+                                        }
                                     ) {
                                         Text(
-                                            text = endAmPm,
+                                            text = endDigits,
                                             color = FocusAccent,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 0.5.sp
                                         )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(FocusAccent.copy(alpha = 0.2f))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = endAmPm,
+                                                color = FocusAccent,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    val total = ((endHour * 60 + endMinute - 30) + 24 * 60) % (24 * 60)
+                                                    endHour = total / 60
+                                                    endMinute = total % 60
+                                                }
+                                                .padding(horizontal = 5.dp, vertical = 3.dp)
+                                        ) {
+                                            Text("-30m", color = FocusSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(FocusPanel)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    val total = (endHour * 60 + endMinute + 30) % (24 * 60)
+                                                    endHour = total / 60
+                                                    endMinute = total % 60
+                                                }
+                                                .padding(horizontal = 5.dp, vertical = 3.dp)
+                                        ) {
+                                            Text("+30m", color = FocusAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
 
@@ -852,29 +978,36 @@ fun AddScheduleDialog(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     // --- REPEAT DAYS SELECTOR ---
-                    Text("Repeat Days", color = FocusSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Repeat Days", color = FocusSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(selectedDays, color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         daysPresets.forEach { preset ->
                             val isSelected = selectedDays == preset
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(if (isSelected) FocusAccent else FocusPanelLight)
                                     .border(
                                         1.dp,
                                         if (isSelected) FocusAccent else FocusBorder,
-                                        RoundedCornerShape(10.dp)
+                                        RoundedCornerShape(8.dp)
                                     )
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         selectedDays = preset
                                     }
-                                    .padding(vertical = 7.dp),
+                                    .padding(vertical = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -882,6 +1015,65 @@ fun AddScheduleDialog(
                                     color = if (isSelected) FocusBackground else FocusWhite,
                                     fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Individual Day-of-Week Chips (Mon - Sun)
+                    val allWeekDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                    fun isDayActive(d: String): Boolean {
+                        return when (selectedDays) {
+                            "Daily" -> true
+                            "Mon - Fri", "Mon-Fri" -> d in listOf("Mon", "Tue", "Wed", "Thu", "Fri")
+                            "Mon - Sat", "Mon-Sat" -> d != "Sun"
+                            "Weekends" -> d in listOf("Sat", "Sun")
+                            else -> selectedDays.contains(d, ignoreCase = true)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        allWeekDays.forEach { dayName ->
+                            val isSel = isDayActive(dayName)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) FocusAccentSoft else FocusPanel)
+                                    .border(
+                                        1.dp,
+                                        if (isSel) FocusAccent else FocusPanelBorder.copy(alpha = 0.5f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        val activeSet = allWeekDays.filter { isDayActive(it) }.toMutableSet()
+                                        if (activeSet.contains(dayName)) {
+                                            if (activeSet.size > 1) activeSet.remove(dayName)
+                                        } else {
+                                            activeSet.add(dayName)
+                                        }
+                                        selectedDays = when {
+                                            activeSet.size == 7 -> "Daily"
+                                            activeSet == setOf("Mon", "Tue", "Wed", "Thu", "Fri") -> "Mon - Fri"
+                                            activeSet == setOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat") -> "Mon - Sat"
+                                            activeSet == setOf("Sat", "Sun") -> "Weekends"
+                                            else -> allWeekDays.filter { activeSet.contains(it) }.joinToString(", ")
+                                        }
+                                    }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = dayName,
+                                    color = if (isSel) FocusAccent else FocusSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.Normal
                                 )
                             }
                         }
@@ -1440,6 +1632,7 @@ fun AddScheduleDialog(
                                 alarmSound = selectedAlarmSound,
                                 isVibrateEnabled = isVibrateEnabled
                             )
+                            android.widget.Toast.makeText(context, "Saved changes to $routineName! ✨", android.widget.Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.addCustomSchedule(
                                 name = routineName,
@@ -1454,6 +1647,7 @@ fun AddScheduleDialog(
                                 alarmSound = selectedAlarmSound,
                                 isVibrateEnabled = isVibrateEnabled
                             )
+                            android.widget.Toast.makeText(context, "Added $routineName focus block! 🚀", android.widget.Toast.LENGTH_SHORT).show()
                         }
                         onClose()
                     },
@@ -1518,8 +1712,8 @@ fun ScheduleCustomTimePickerDialog(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
 
-    var selectedHour24 by remember { mutableIntStateOf(initialHour) }
-    var selectedMinute by remember { mutableIntStateOf(initialMinute) }
+    var selectedHour24 by remember(initialHour) { mutableIntStateOf(initialHour) }
+    var selectedMinute by remember(initialMinute) { mutableIntStateOf(initialMinute) }
 
     // Derive 12-hour values
     val isPm = selectedHour24 >= 12
@@ -1529,8 +1723,8 @@ fun ScheduleCustomTimePickerDialog(
         else -> selectedHour24
     }
 
-    var hourInput by remember { mutableStateOf(hour12.toString()) }
-    var minuteInput by remember { mutableStateOf(if (selectedMinute < 10) "0$selectedMinute" else selectedMinute.toString()) }
+    var hourInput by remember(hour12) { mutableStateOf(hour12.toString()) }
+    var minuteInput by remember(selectedMinute) { mutableStateOf(if (selectedMinute < 10) "0$selectedMinute" else selectedMinute.toString()) }
 
     fun setHour12AndAmPm(newHour12: Int, pm: Boolean) {
         val safeHour12 = ((newHour12 - 1) % 12 + 12) % 12 + 1
@@ -1569,7 +1763,10 @@ fun ScheduleCustomTimePickerDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.90f))
-            .clickable { onDismiss() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -1854,8 +2051,14 @@ fun ScheduleCustomTimePickerDialog(
                                 if (newVal.isEmpty() || (newVal.all { it.isDigit() } && newVal.length <= 2)) {
                                     hourInput = newVal
                                     val h = newVal.toIntOrNull()
-                                    if (h != null && h in 1..12) {
-                                        setHour12AndAmPm(h, isPm)
+                                    if (h != null) {
+                                        if (h in 13..23) {
+                                            selectedHour24 = h
+                                        } else if (h in 1..12) {
+                                            setHour12AndAmPm(h, isPm)
+                                        } else if (h == 0) {
+                                            selectedHour24 = 0
+                                        }
                                     }
                                 }
                             },

@@ -73,6 +73,8 @@ import com.focusflow.app.ui.screens.SplashScreen
 import com.focusflow.app.ui.screens.StrictLockScreen
 import com.focusflow.app.ui.screens.GlobalSearchDialog
 import com.focusflow.app.ui.screens.HabitsAndGoalsScreen
+import com.focusflow.app.ui.screens.CreateHabitDialog
+import com.focusflow.app.ui.screens.CreateGoalDialog
 import com.focusflow.app.ui.screens.TaskEditorDialog
 import com.focusflow.app.ui.screens.TasksScreen
 import com.focusflow.app.ui.theme.FocusAccent
@@ -295,6 +297,20 @@ class MainActivity : ComponentActivity() {
                                                     viewModel.showTaskEditorModal = false
                                                     viewModel.editingTaskItem = null
                                                 }
+                                            )
+                                        }
+
+                                        if (viewModel.showCreateHabitDialog) {
+                                            CreateHabitDialog(
+                                                viewModel = viewModel,
+                                                onDismiss = { viewModel.showCreateHabitDialog = false }
+                                            )
+                                        }
+
+                                        if (viewModel.showCreateGoalDialog) {
+                                            CreateGoalDialog(
+                                                viewModel = viewModel,
+                                                onDismiss = { viewModel.showCreateGoalDialog = false }
                                             )
                                         }
 

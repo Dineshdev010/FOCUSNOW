@@ -1045,10 +1045,7 @@ class FocusFlowRepository(private val context: Context) {
         prefs.edit().putInt(KEY_APP_OPEN_QUOTA_PREFIX + packageName, maxDailyOpens).apply()
     }
 
-    private fun getTodayDateString(): String {
-        val cal = java.util.Calendar.getInstance()
-        return "${cal.get(java.util.Calendar.YEAR)}-${cal.get(java.util.Calendar.MONTH)}-${cal.get(java.util.Calendar.DAY_OF_MONTH)}"
-    }
+    
 
     fun getTodayAppOpenCount(packageName: String): Int {
         val today = getTodayDateString()
@@ -1955,7 +1952,7 @@ class FocusFlowRepository(private val context: Context) {
             val pm = context.packageManager
             val appInfo = pm.getApplicationInfo(pkg, 0)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                if (appInfo.category == android.content.pm.ApplicationInfo.CATEGORY_EDUCATION) {
+                if (false) {
                     return true
                 }
             }
@@ -2033,7 +2030,7 @@ class FocusFlowRepository(private val context: Context) {
             val userManager = context.getSystemService(android.content.Context.USER_SERVICE) as? android.os.UserManager
             if (launcherApps != null && userManager != null) {
                 for (profile in userManager.userProfiles) {
-                    if (userManager.isManagedProfile(profile.hashCode())) {
+                    if (profile != android.os.Process.myUserHandle()) {
                         val activities = launcherApps.getActivityList(pkg, profile)
                         if (activities.isNotEmpty()) return true
                     }

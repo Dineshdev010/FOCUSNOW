@@ -106,7 +106,10 @@ fun AppBlockerRulesDialog(
             .background(FocusBackground.copy(alpha = 0.96f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onClose() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClose() },
         contentAlignment = Alignment.Center
     ) {
         Card(

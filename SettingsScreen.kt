@@ -79,20 +79,21 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "⚙️ Settings",
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = FocusWhite,
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
                 Text(
                     text = "Configure your focus experience",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = FocusMuted
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
@@ -109,7 +110,8 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
         ) {
@@ -780,50 +782,52 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp)
                         .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // PIN input as 4 boxes
-                    (0 until 4).forEach { i ->
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(FocusPanelLight)
-                                .border(1.dp, FocusPanelBorder, RoundedCornerShape(10.dp))
-                                .clickable {
-                                    val digit = ((newPin.length) % 10).toString()
-                                    if (newPin.length < 4) newPin += digit
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (i < newPin.length) "●" else "",
-                                fontSize = 18.sp,
-                                color = FocusAccent,
-                                fontWeight = FontWeight.Bold
-                            )
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        (0 until 4).forEach { i ->
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(FocusPanelLight)
+                                    .border(1.dp, FocusPanelBorder, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        val digit = ((newPin.length) % 10).toString()
+                                        if (newPin.length < 4) newPin += digit
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (i < newPin.length) "●" else "",
+                                    fontSize = 16.sp,
+                                    color = FocusAccent,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(6.dp))
                     // Quick digit buttons
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                             listOf("1", "2", "3").forEach { d ->
                                 PinDigitButton(d) { newPin = (newPin + d).take(4) }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                             listOf("4", "5", "6").forEach { d ->
                                 PinDigitButton(d) { newPin = (newPin + d).take(4) }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                             listOf("7", "8", "9").forEach { d ->
                                 PinDigitButton(d) { newPin = (newPin + d).take(4) }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                             PinDigitButton("⌫") { if (newPin.isNotEmpty()) newPin = newPin.dropLast(1) }
                             PinDigitButton("0") { newPin = (newPin + "0").take(4) }
                             PinDigitButton("✓") {
@@ -906,7 +910,7 @@ fun SettingsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit = {}) {
             }
         }
 
-        Spacer(modifier = Modifier.height(44.dp))
+        Spacer(modifier = Modifier.height(80.dp))
         }
     }
     }
@@ -1012,7 +1016,10 @@ private fun SettingsNumberRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
             Text(text = emoji, fontSize = 20.sp)
             Spacer(modifier = Modifier.width(10.dp))
             Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = FocusWhite)

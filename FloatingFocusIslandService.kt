@@ -52,13 +52,13 @@ class FloatingFocusIslandService : Service() {
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:$packageName")
                 ).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 startActivity(overlayIntent)
             } catch (_: Exception) {
                 try {
                     val overlayIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     startActivity(overlayIntent)
                 } catch (_: Exception) {}
@@ -93,7 +93,7 @@ class FloatingFocusIslandService : Service() {
         }
 
         val openIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val pendingIntent = PendingIntent.getActivity(
             this, 99, openIntent,
@@ -110,7 +110,7 @@ class FloatingFocusIslandService : Service() {
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 android.net.Uri.parse("package:$packageName")
             ).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             val overlayPendingIntent = PendingIntent.getActivity(
                 this, 101, overlayIntent,
@@ -300,7 +300,7 @@ class FloatingFocusIslandService : Service() {
                         } else {
                             // Clicked pill body -> bring FocusNow to front
                             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
                             if (launchIntent != null) startActivity(launchIntent)
                         }
@@ -341,7 +341,7 @@ class FloatingFocusIslandService : Service() {
 
     private fun onTimerFinished(appName: String) {
         val finishIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             putExtra("TRIGGER_REGAIN_TIMES_UP", true)
             putExtra("TIMES_UP_APP_NAME", appName)
             putExtra("LOCKED_APP_NAME", appName)

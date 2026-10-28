@@ -15,7 +15,7 @@ import java.util.Calendar
 
 object FocusNotificationHelper {
 
-    private const val CHANNEL_FOCUS = "focus_reminders"
+    const val CHANNEL_FOCUS = "focus_reminders"
     private const val CHANNEL_STREAK = "streak_alerts"
     private const val CHANNEL_DIGEST = "daily_digest"
     private const val CHANNEL_ACHIEVEMENT = "achievements"
@@ -398,6 +398,10 @@ object FocusNotificationHelper {
             val notifManager = context.getSystemService(NotificationManager::class.java)
             notifManager?.notify(NOTIF_ID_BEDTIME, notif)
         } catch (_: Exception) {}
+    }
+
+        fun scheduleStreakCheck(context: Context, hour: Int = 20, minute: Int = 0) {
+        scheduleDailyFocusReminder(context, hour, minute)
     }
 
     fun scheduleDailyFocusReminder(context: Context, hour: Int, minute: Int) {

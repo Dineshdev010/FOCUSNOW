@@ -1,8 +1,12 @@
 package com.focusflow.app.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +15,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,8 +46,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,13 +72,14 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
     // Weekly day abbreviations for the streak summary
     val daysOfWeek = listOf("M", "T", "W", "T", "F", "S", "S")
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-    ) {
-        Spacer(modifier = Modifier.height(10.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(10.dp))
 
         // Header
         Row(
@@ -74,7 +87,7 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "NEURO-ROUTINES",
                     color = FocusAccent,
@@ -82,14 +95,16 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Habit Streaks",
                     color = FocusWhite,
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             Button(
                 onClick = {
@@ -97,10 +112,10 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
                     viewModel.showCreateHabitDialog = true
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.height(40.dp)
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(36.dp)
             ) {
-                Text("+ Add Habit", color = FocusBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text("+ Add Habit", color = FocusBackground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
 
@@ -230,12 +245,21 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
                             Spacer(modifier = Modifier.width(14.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = habit.title,
-                                    color = FocusWhite,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (habit.emoji.isNotBlank()) {
+                                        Text(
+                                            text = habit.emoji,
+                                            fontSize = 16.sp,
+                                            modifier = Modifier.padding(end = 6.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = habit.title,
+                                        color = FocusWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                                 if (habit.description.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
@@ -322,12 +346,35 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
                     }
                 }
             }
+            if (habits.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FocusPanel.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, FocusBorder.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showCreateHabitDialog = true
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("+ Add Another Habit Routine", color = FocusAccent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(72.dp))
     }
 
-    // Modal: Create Habit Dialog
     if (viewModel.showCreateHabitDialog) {
         CreateHabitDialog(
             viewModel = viewModel,
@@ -335,47 +382,89 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
         )
     }
 }
+}
 
 @Composable
 fun CreateHabitDialog(
     viewModel: FocusFlowViewModel,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    BackHandler { onDismiss() }
+
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var selectedEmoji by remember { mutableStateOf("⚡") }
     var targetDays by remember { mutableIntStateOf(7) }
     var nameError by remember { mutableStateOf<String?>(null) }
-    val haptic = LocalHapticFeedback.current
+
+    val emojis = listOf("⚡", "💧", "📚", "🏃", "🧘", "💻", "🍎", "💤", "🎯", "🏋️", "✍️", "🌿")
+
+    val quickSuggestions = listOf(
+        Triple("💧", "Drink 2L Water", 7),
+        Triple("📚", "Read 15 Mins", 7),
+        Triple("🧘", "5m Mindful Breath", 7),
+        Triple("🏃", "Morning Walk / Run", 5),
+        Triple("💻", "Deep Work Sprint", 5),
+        Triple("💤", "Sleep Before 11 PM", 7)
+    )
+
+    fun performSave() {
+        if (name.isBlank()) {
+            nameError = "Please enter a habit name"
+            return
+        }
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        viewModel.addHabit(
+            title = name.trim(),
+            description = description.trim(),
+            targetDaysPerWeek = targetDays,
+            emoji = selectedEmoji
+        )
+        Toast.makeText(context, "Routine \"${name.trim()}\" added! ⚡", Toast.LENGTH_SHORT).show()
+        onDismiss()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.85f))
-            .clickable { onDismiss() }
-            .padding(16.dp),
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() }
+            .padding(horizontal = 16.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = FocusPanel),
             shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, FocusBorder),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = false) {}
-                .padding(bottom = 20.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { /* consume clicks */ }
         ) {
             Column(
                 modifier = Modifier
-                    .padding(22.dp)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .padding(20.dp)
             ) {
+                // Header (Fixed at top)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text("NEW HABIT", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                        Text("Form a Neuro-Routine", color = FocusWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("NEW HABIT ROUTINE", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text("Form a Daily Ritual", color = FocusWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
                     Box(
                         modifier = Modifier
@@ -389,96 +478,176 @@ fun CreateHabitDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                Text("Habit Name *", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = {
-                        name = it
-                        if (it.isNotBlank()) nameError = null
-                    },
-                    placeholder = { Text("e.g., Read 20 pages or Meditate", color = FocusSecondary) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (nameError != null) FocusRed else FocusAccent,
-                        unfocusedBorderColor = if (nameError != null) FocusRed else FocusBorder,
-                        focusedTextColor = FocusWhite,
-                        unfocusedTextColor = FocusWhite,
-                        focusedContainerColor = FocusPanelLight,
-                        unfocusedContainerColor = FocusPanelLight
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = nameError != null
-                )
-                if (nameError != null) {
-                    Text(nameError!!, color = FocusRed, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
+                // Scrollable Form Area (gracefully contracts when keyboard is open)
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Quick Suggestions Chips
+                    Text("Quick Suggestions", color = FocusSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(quickSuggestions.size) { idx ->
+                            val (sugEmoji, sugTitle, sugDays) = quickSuggestions[idx]
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(FocusPanelLight)
+                                    .border(1.dp, FocusBorder, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        selectedEmoji = sugEmoji
+                                        name = sugTitle
+                                        targetDays = sugDays
+                                        nameError = null
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                Text("$sugEmoji $sugTitle", color = FocusWhite, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Routine Icon", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(emojis.size) { idx ->
+                            val emo = emojis[idx]
+                            val isSelected = selectedEmoji == emo
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) FocusAccentSoft else FocusPanelLight)
+                                    .border(
+                                        1.5.dp,
+                                        if (isSelected) FocusAccent else Color.Transparent,
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        selectedEmoji = emo
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(emo, fontSize = 18.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Habit Name *", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = {
+                            name = it
+                            if (it.isNotBlank()) nameError = null
+                        },
+                        placeholder = { Text("e.g., Read 20 pages or Meditate", color = FocusSecondary, fontSize = 13.sp) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performSave() }),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (nameError != null) FocusRed else FocusAccent,
+                            unfocusedBorderColor = if (nameError != null) FocusRed else FocusBorder,
+                            focusedTextColor = FocusWhite,
+                            unfocusedTextColor = FocusWhite,
+                            focusedContainerColor = FocusPanelLight,
+                            unfocusedContainerColor = FocusPanelLight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = nameError != null,
+                        singleLine = true
+                    )
+                    if (nameError != null) {
+                        Text(nameError!!, color = FocusRed, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text("Description / Intent (Optional)", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = { Text("Why this routine matters...", color = FocusSecondary, fontSize = 13.sp) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performSave() }),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FocusAccent,
+                            unfocusedBorderColor = FocusBorder,
+                            focusedTextColor = FocusWhite,
+                            unfocusedTextColor = FocusWhite,
+                            focusedContainerColor = FocusPanelLight,
+                            unfocusedContainerColor = FocusPanelLight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 2
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Weekly Frequency", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        listOf(7 to "Everyday", 5 to "Weekdays (5d)", 3 to "3x / Week").forEach { (days, label) ->
+                            val isSelected = targetDays == days
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) FocusAccentSoft else FocusPanelLight)
+                                    .border(1.dp, if (isSelected) FocusAccent else Color.Transparent, RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        targetDays = days
+                                    }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) FocusAccent else FocusSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Text("Description / Intent (Optional)", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    placeholder = { Text("Why this routine matters for your flow...", color = FocusSecondary) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FocusAccent,
-                        unfocusedBorderColor = FocusBorder,
-                        focusedTextColor = FocusWhite,
-                        unfocusedTextColor = FocusWhite,
-                        focusedContainerColor = FocusPanelLight,
-                        unfocusedContainerColor = FocusPanelLight
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Weekly Frequency", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(7 to "Everyday", 5 to "Weekdays (5d)", 3 to "3x / Week").forEach { (days, label) ->
-                        val isSelected = targetDays == days
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) FocusAccentSoft else FocusPanelLight)
-                                .border(1.dp, if (isSelected) FocusAccent else Color.Transparent, RoundedCornerShape(10.dp))
-                                .clickable { targetDays = days }
-                                .padding(horizontal = 12.dp, vertical = 7.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) FocusAccent else FocusSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
+                // Bottom Action Button: Fixed at bottom, always reachable and visible!
                 Button(
-                    onClick = {
-                        if (name.isBlank()) {
-                            nameError = "Please enter a habit name"
-                            return@Button
-                        }
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.addHabit(name, description, targetDays)
-                    },
+                    onClick = { performSave() },
                     colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                 ) {
-                    Text("+ Save Routine", color = FocusBackground, fontWeight = FontWeight.Bold)
+                    Text("+ Save Routine", color = FocusBackground, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }

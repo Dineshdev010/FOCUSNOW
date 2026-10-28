@@ -94,10 +94,12 @@ fun HabitsAndGoalsScreen(viewModel: FocusFlowViewModel) {
         }
 
         // Sub-screen rendering
-        if (activeSubTab == "Habits") {
-            HabitsScreen(viewModel = viewModel)
-        } else {
-            GoalsScreen(viewModel = viewModel)
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (activeSubTab == "Habits") {
+                HabitsScreen(viewModel = viewModel)
+            } else {
+                GoalsScreen(viewModel = viewModel)
+            }
         }
     }
 }

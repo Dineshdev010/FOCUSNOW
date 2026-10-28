@@ -596,7 +596,7 @@ fun ProfileScreen(
                                         .border(1.5.dp, FocusAccent.copy(alpha = 0.5f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(ach.icon, fontSize = 22.sp)
+                                    Text(ach.emoji, fontSize = 22.sp)
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
@@ -662,7 +662,7 @@ fun ProfileScreen(
                     ProfileLoadoutRow(
                         emoji = "🪴",
                         title = "Focus Bonsai",
-                        value = "${viewModel.bonsaiStatus.stageName} • ${viewModel.bonsaiStatus.health}% Health",
+                        value = "${viewModel.bonsaiStatus.title} • ${viewModel.bonsaiStatus.healthPercent}% Health",
                         trailingAction = "Nurture",
                         onAction = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -677,7 +677,7 @@ fun ProfileScreen(
                     ProfileLoadoutRow(
                         emoji = "🌙",
                         title = "Night Curfew",
-                        value = if (viewModel.sleepTrackingState.isCurfewEnabled) {
+                        value = if (viewModel.sleepTrackingState.bedtimeCurfewEnabled) {
                             "Active (${viewModel.sleepTrackingState.curfewStartHour}:00 - ${viewModel.sleepTrackingState.curfewEndHour}:00)"
                         } else {
                             "Disabled"
@@ -695,7 +695,7 @@ fun ProfileScreen(
                     ProfileLoadoutRow(
                         emoji = "🧩",
                         title = "Mind Puzzle Theme",
-                        value = viewModel.selectedJigsawTheme.replaceFirstChar { it.uppercase() },
+                        value = viewModel.selectedJigsawTheme.name.lowercase().replaceFirstChar { it.uppercase() },
                         trailingAction = "Practice",
                         onAction = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)

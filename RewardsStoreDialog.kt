@@ -72,7 +72,10 @@ fun RewardsStoreDialog(
             .background(FocusBackground.copy(alpha = 0.94f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onClose() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClose() },
         contentAlignment = Alignment.Center
     ) {
         Card(

@@ -34,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +90,10 @@ fun FocusLockdownDialog(
             .background(FocusBackground.copy(alpha = 0.96f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable(enabled = false) {},
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { /* block all background taps — this is a lockdown screen */ },
         contentAlignment = Alignment.Center
     ) {
         Card(

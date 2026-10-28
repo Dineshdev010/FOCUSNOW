@@ -87,7 +87,10 @@ fun TaskEditorDialog(
             .background(Color.Black.copy(alpha = 0.85f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onDismiss() }
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() }
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -96,7 +99,10 @@ fun TaskEditorDialog(
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = false) {}
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) { /* consume clicks so they don't reach the scrim */ }
                 .padding(bottom = 20.dp)
         ) {
             Column(

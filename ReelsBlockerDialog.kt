@@ -62,7 +62,10 @@ fun ReelsBlockerDialog(
             .background(FocusBackground.copy(alpha = 0.95f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onClose() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClose() },
         contentAlignment = Alignment.Center
     ) {
         Card(

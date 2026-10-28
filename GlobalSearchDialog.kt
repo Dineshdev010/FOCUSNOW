@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,7 +56,10 @@ fun GlobalSearchDialog(
             .background(Color.Black.copy(alpha = 0.90f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onDismiss() }
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.TopCenter
     ) {
@@ -64,7 +68,10 @@ fun GlobalSearchDialog(
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = false) {}
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) { /* consume clicks so they don't reach the scrim */ }
                 .padding(vertical = 8.dp)
         ) {
             Column(

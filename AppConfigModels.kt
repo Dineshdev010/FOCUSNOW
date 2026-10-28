@@ -43,6 +43,33 @@ data class FocusSchedule(
     val alarmSound: String = "Zen Gong",
     val isVibrateEnabled: Boolean = true
 ) {
+    fun matchesDayOfWeek(calendar: java.util.Calendar): Boolean {
+        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+        val summary = daysSummary.trim()
+        return when {
+            summary.isEmpty() || summary.equals("Daily", ignoreCase = true) -> true
+            summary.equals("Mon - Fri", ignoreCase = true) || summary.equals("Mon-Fri", ignoreCase = true) ->
+                dayOfWeek in java.util.Calendar.MONDAY..java.util.Calendar.FRIDAY
+            summary.equals("Mon - Sat", ignoreCase = true) || summary.equals("Mon-Sat", ignoreCase = true) ->
+                dayOfWeek != java.util.Calendar.SUNDAY
+            summary.equals("Weekends", ignoreCase = true) ->
+                dayOfWeek == java.util.Calendar.SATURDAY || dayOfWeek == java.util.Calendar.SUNDAY
+            else -> {
+                val dayName = when (dayOfWeek) {
+                    java.util.Calendar.SUNDAY -> "Sun"
+                    java.util.Calendar.MONDAY -> "Mon"
+                    java.util.Calendar.TUESDAY -> "Tue"
+                    java.util.Calendar.WEDNESDAY -> "Wed"
+                    java.util.Calendar.THURSDAY -> "Thu"
+                    java.util.Calendar.FRIDAY -> "Fri"
+                    java.util.Calendar.SATURDAY -> "Sat"
+                    else -> ""
+                }
+                summary.contains(dayName, ignoreCase = true)
+            }
+        }
+    }
+
     fun isCurrentlyActive(): Boolean {
         if (!isEnabled) return false
         val now = java.util.Calendar.getInstance()
@@ -51,10 +78,19 @@ data class FocusSchedule(
         val endMins = endHour * 60 + endMinute
 
         return if (startMins <= endMins) {
-            currentMins in startMins..endMins
+            matchesDayOfWeek(now) && currentMins in startMins..endMins
         } else {
-            // Over midnight
-            currentMins >= startMins || currentMins <= endMins
+            // Over midnight (e.g. 22:00 to 07:00)
+            if (currentMins >= startMins) {
+                matchesDayOfWeek(now)
+            } else if (currentMins <= endMins) {
+                val yesterday = (now.clone() as java.util.Calendar).apply {
+                    add(java.util.Calendar.DAY_OF_YEAR, -1)
+                }
+                matchesDayOfWeek(yesterday)
+            } else {
+                false
+            }
         }
     }
 

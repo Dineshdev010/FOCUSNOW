@@ -1,8 +1,12 @@
 package com.focusflow.app.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,14 +15,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -39,8 +47,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,13 +69,14 @@ fun GoalsScreen(viewModel: FocusFlowViewModel) {
     val activeGoals = goals.filter { !it.isCompleted }
     val completedGoals = goals.filter { it.isCompleted }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-    ) {
-        Spacer(modifier = Modifier.height(10.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(10.dp))
 
         // Header
         Row(
@@ -226,13 +237,13 @@ fun GoalsScreen(viewModel: FocusFlowViewModel) {
         Spacer(modifier = Modifier.height(72.dp))
     }
 
-    // Modal: Create Goal Dialog
     if (viewModel.showCreateGoalDialog) {
         CreateGoalDialog(
             viewModel = viewModel,
             onDismiss = { viewModel.showCreateGoalDialog = false }
         )
     }
+}
 }
 
 @Composable
@@ -365,7 +376,10 @@ fun CreateGoalDialog(
     viewModel: FocusFlowViewModel,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    BackHandler { onDismiss() }
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var goalType by remember { mutableStateOf(GoalType.FOCUS_TIME) }
@@ -374,33 +388,65 @@ fun CreateGoalDialog(
     var titleError by remember { mutableStateOf<String?>(null) }
     var targetError by remember { mutableStateOf<String?>(null) }
 
+    fun performSave() {
+        if (title.isBlank()) {
+            titleError = "Please enter a goal title"
+            return
+        }
+        val target = targetValueStr.toIntOrNull() ?: 0
+        if (target <= 0) {
+            targetError = "Enter a valid positive number"
+            return
+        }
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        viewModel.addGoal(
+            title = title.trim(),
+            description = description.trim(),
+            type = goalType,
+            targetValue = target,
+            deadline = deadline.trim()
+        )
+        Toast.makeText(context, "Goal \"${title.trim()}\" launched! 🎯", Toast.LENGTH_SHORT).show()
+        onDismiss()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.85f))
-            .clickable { onDismiss() }
-            .padding(16.dp),
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() }
+            .padding(horizontal = 16.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = FocusPanel),
             shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, FocusBorder),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = false) {}
-                .padding(bottom = 20.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { /* consume clicks */ }
         ) {
             Column(
                 modifier = Modifier
-                    .padding(22.dp)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .padding(20.dp)
             ) {
+                // Header (Fixed at top)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text("NEW STRATEGIC TARGET", color = FocusAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                         Text("Set Productivity Goal", color = FocusWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
@@ -416,151 +462,178 @@ fun CreateGoalDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Goal Type Selector
-                Text("Goal Type", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(
-                        GoalType.FOCUS_TIME to "⏱️ Focus Time",
-                        GoalType.TASKS_COMPLETED to "✅ Tasks",
-                        GoalType.HABIT_STREAK to "🔥 Streak"
-                    ).forEach { (type, label) ->
-                        val isSelected = goalType == type
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) FocusAccentSoft else FocusPanelLight)
-                                .border(1.dp, if (isSelected) FocusAccent else Color.Transparent, RoundedCornerShape(10.dp))
-                                .clickable {
-                                    goalType = type
-                                    targetValueStr = when (type) {
-                                        GoalType.FOCUS_TIME -> "300"
-                                        GoalType.TASKS_COMPLETED -> "15"
-                                        GoalType.HABIT_STREAK -> "7"
+                // Scrollable Form
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Goal Type Selector
+                    Text("Goal Type", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            GoalType.FOCUS_TIME to "⏱️ Focus Time",
+                            GoalType.TASKS_COMPLETED to "✅ Tasks",
+                            GoalType.HABIT_STREAK to "🔥 Streak"
+                        ).forEach { (type, label) ->
+                            val isSelected = goalType == type
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) FocusAccentSoft else FocusPanelLight)
+                                    .border(1.dp, if (isSelected) FocusAccent else Color.Transparent, RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        goalType = type
+                                        targetValueStr = when (type) {
+                                            GoalType.FOCUS_TIME -> "300"
+                                            GoalType.TASKS_COMPLETED -> "10"
+                                            GoalType.HABIT_STREAK -> "7"
+                                        }
+                                        targetError = null
                                     }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 7.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) FocusAccent else FocusSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) FocusAccent else FocusSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Goal Title *", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = {
+                            title = it
+                            if (it.isNotBlank()) titleError = null
+                        },
+                        placeholder = { Text("e.g., Master Kotlin Coroutines", color = FocusSecondary, fontSize = 13.sp) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (titleError != null) FocusRed else FocusAccent,
+                            unfocusedBorderColor = if (titleError != null) FocusRed else FocusBorder,
+                            focusedTextColor = FocusWhite,
+                            unfocusedTextColor = FocusWhite,
+                            focusedContainerColor = FocusPanelLight,
+                            unfocusedContainerColor = FocusPanelLight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = titleError != null,
+                        singleLine = true
+                    )
+                    if (titleError != null) {
+                        Text(titleError!!, color = FocusRed, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text("Description / Why (Optional)", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = { Text("What milestone will you unlock?", color = FocusSecondary, fontSize = 13.sp) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FocusAccent,
+                            unfocusedBorderColor = FocusBorder,
+                            focusedTextColor = FocusWhite,
+                            unfocusedTextColor = FocusWhite,
+                            focusedContainerColor = FocusPanelLight,
+                            unfocusedContainerColor = FocusPanelLight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 2
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val unitLabel = when (goalType) {
+                        GoalType.FOCUS_TIME -> "Target Focus Minutes *"
+                        GoalType.TASKS_COMPLETED -> "Target Completed Tasks *"
+                        GoalType.HABIT_STREAK -> "Target Streak Days *"
+                    }
+                    Text(unitLabel, color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = targetValueStr,
+                        onValueChange = {
+                            targetValueStr = it.filter { ch -> ch.isDigit() }
+                            if (it.isNotBlank()) targetError = null
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performSave() }),
+                        placeholder = { Text("e.g., 300", color = FocusSecondary, fontSize = 13.sp) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (targetError != null) FocusRed else FocusAccent,
+                            unfocusedBorderColor = if (targetError != null) FocusRed else FocusBorder,
+                            focusedTextColor = FocusWhite,
+                            unfocusedTextColor = FocusWhite,
+                            focusedContainerColor = FocusPanelLight,
+                            unfocusedContainerColor = FocusPanelLight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = targetError != null,
+                        singleLine = true
+                    )
+                    if (targetError != null) {
+                        Text(targetError!!, color = FocusRed, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text("Target Deadline (Optional)", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = deadline,
+                        onValueChange = { deadline = it },
+                        placeholder = { Text("e.g., End of Month or Oct 31", color = FocusSecondary, fontSize = 13.sp) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performSave() }),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FocusAccent,
+                            unfocusedBorderColor = FocusBorder,
+                            focusedTextColor = FocusWhite,
+                            unfocusedTextColor = FocusWhite,
+                            focusedContainerColor = FocusPanelLight,
+                            unfocusedContainerColor = FocusPanelLight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Text("Goal Title *", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = {
-                        title = it
-                        if (it.isNotBlank()) titleError = null
-                    },
-                    placeholder = { Text("e.g., Log 500 Deep Focus Minutes", color = FocusSecondary) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (titleError != null) FocusRed else FocusAccent,
-                        unfocusedBorderColor = if (titleError != null) FocusRed else FocusBorder,
-                        focusedTextColor = FocusWhite,
-                        unfocusedTextColor = FocusWhite,
-                        focusedContainerColor = FocusPanelLight,
-                        unfocusedContainerColor = FocusPanelLight
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = titleError != null
-                )
-                if (titleError != null) {
-                    Text(titleError!!, color = FocusRed, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                val targetPrompt = when (goalType) {
-                    GoalType.FOCUS_TIME -> "Target Focus Minutes (e.g., 300) *"
-                    GoalType.TASKS_COMPLETED -> "Target Tasks Completed (e.g., 20) *"
-                    GoalType.HABIT_STREAK -> "Target Consecutive Days Streak (e.g., 7) *"
-                }
-                Text(targetPrompt, color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = targetValueStr,
-                    onValueChange = {
-                        targetValueStr = it.filter { ch -> ch.isDigit() }
-                        if (it.isNotBlank()) targetError = null
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (targetError != null) FocusRed else FocusAccent,
-                        unfocusedBorderColor = if (targetError != null) FocusRed else FocusBorder,
-                        focusedTextColor = FocusWhite,
-                        unfocusedTextColor = FocusWhite,
-                        focusedContainerColor = FocusPanelLight,
-                        unfocusedContainerColor = FocusPanelLight
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = targetError != null
-                )
-                if (targetError != null) {
-                    Text(targetError!!, color = FocusRed, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text("Target Deadline (Optional)", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = deadline,
-                    onValueChange = { deadline = it },
-                    placeholder = { Text("e.g., End of Month or Oct 31", color = FocusSecondary) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FocusAccent,
-                        unfocusedBorderColor = FocusBorder,
-                        focusedTextColor = FocusWhite,
-                        unfocusedTextColor = FocusWhite,
-                        focusedContainerColor = FocusPanelLight,
-                        unfocusedContainerColor = FocusPanelLight
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
+                // Bottom Action: Fixed & always accessible!
                 Button(
-                    onClick = {
-                        if (title.isBlank()) {
-                            titleError = "Please enter a goal title"
-                            return@Button
-                        }
-                        val target = targetValueStr.toIntOrNull() ?: 0
-                        if (target <= 0) {
-                            targetError = "Enter a valid positive number"
-                            return@Button
-                        }
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.addGoal(
-                            title = title,
-                            description = description,
-                            type = goalType,
-                            targetValue = target,
-                            deadline = deadline
-                        )
-                    },
+                    onClick = { performSave() },
                     colors = ButtonDefaults.buttonColors(containerColor = FocusAccent),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                 ) {
-                    Text("+ Launch Goal", color = FocusBackground, fontWeight = FontWeight.Bold)
+                    Text("+ Launch Goal", color = FocusBackground, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }

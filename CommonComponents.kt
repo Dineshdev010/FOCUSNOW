@@ -149,18 +149,18 @@ fun FocusBrandBadge() {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .height(36.dp)
-            .background(FocusAccentSoft, RoundedCornerShape(12.dp))
-            .padding(horizontal = 11.dp)
+            .height(32.dp)
+            .background(FocusAccentSoft, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp)
     ) {
-        FocusHourglassFlameIcon(sizeDp = 18)
-        Spacer(modifier = Modifier.width(7.dp))
+        FocusHourglassFlameIcon(sizeDp = 15)
+        Spacer(modifier = Modifier.width(5.dp))
         Text(
             text = "FOCUSNOW",
             color = FocusAccent,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
+            letterSpacing = 0.8.sp
         )
     }
 }
@@ -478,7 +478,10 @@ fun AntiTamperAlertDialog(onClose: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(FocusBackground.copy(alpha = 0.96f))
-            .clickable { onClose() },
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { onClose() },
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -486,6 +489,10 @@ fun AntiTamperAlertDialog(onClose: () -> Unit) {
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth(0.88f)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) {}
                 .border(1.5.dp, PriorityHigh, RoundedCornerShape(24.dp))
                 .padding(20.dp)
         ) {

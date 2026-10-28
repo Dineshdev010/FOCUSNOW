@@ -494,26 +494,35 @@ fun AppLimitsAndSchedulesScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         val presets = listOf(
-                            Triple("Deep Work", "💼", "Mon-Fri • 09:00 - 17:00"),
-                            Triple("Study Sprint", "📚", "Daily • 18:30 - 21:00"),
-                            Triple("Digital Curfew", "🌙", "Daily • 22:30 - 07:00"),
-                            Triple("Morning Detox", "🧘", "Mon-Sat • 06:00 - 08:30")
+                            Triple("Deep Work", "💼", Pair(Pair(9, 0), Pair(17, 0)) to "Mon-Fri • 09:00 - 17:00"),
+                            Triple("Study Sprint", "📚", Pair(Pair(18, 30), Pair(21, 0)) to "Daily • 18:30 - 21:00"),
+                            Triple("Digital Curfew", "🌙", Pair(Pair(22, 30), Pair(7, 0)) to "Daily • 22:30 - 07:00"),
+                            Triple("Morning Detox", "🧘", Pair(Pair(6, 0), Pair(8, 30)) to "Mon-Sat • 06:00 - 08:30")
                         )
 
-                        presets.forEach { (name, emoji, timing) ->
+                        presets.forEach { (name, emoji, data) ->
+                            val (timePair, timing) = data
+                            val (startTime, endTime) = timePair
+                            val daysSummary = when (name) {
+                                "Deep Work" -> "Mon - Fri"
+                                "Morning Detox" -> "Mon - Sat"
+                                else -> "Daily"
+                            }
                             Card(
                                 modifier = Modifier
-                                    .width(160.dp)
+                                    .width(165.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        when (name) {
-                                            "Deep Work" -> viewModel.addCustomSchedule(name, emoji, 9, 0, 17, 0, "Mon - Fri")
-                                            "Study Sprint" -> viewModel.addCustomSchedule(name, emoji, 18, 30, 21, 0, "Daily")
-                                            "Digital Curfew" -> viewModel.addCustomSchedule(name, emoji, 22, 30, 7, 0, "Daily")
-                                            "Morning Detox" -> viewModel.addCustomSchedule(name, emoji, 6, 0, 8, 30, "Mon - Sat")
-                                        }
-                                        Toast.makeText(context, "Added $name schedule! ✨", Toast.LENGTH_SHORT).show()
+                                        viewModel.openNewScheduleWithPreset(
+                                            name = name,
+                                            emoji = emoji,
+                                            startHour = startTime.first,
+                                            startMinute = startTime.second,
+                                            endHour = endTime.first,
+                                            endMinute = endTime.second,
+                                            daysSummary = daysSummary
+                                        )
                                     },
                                 shape = RoundedCornerShape(14.dp),
                                 colors = CardDefaults.cardColors(containerColor = FocusPanel)
@@ -525,7 +534,28 @@ fun AppLimitsAndSchedulesScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(emoji, fontSize = 20.sp)
-                                        Text("+ Add", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = FocusAccent)
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(FocusAccentSoft)
+                                                .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    viewModel.addCustomSchedule(
+                                                        name = name,
+                                                        emoji = emoji,
+                                                        startHour = startTime.first,
+                                                        startMinute = startTime.second,
+                                                        endHour = endTime.first,
+                                                        endMinute = endTime.second,
+                                                        daysSummary = daysSummary
+                                                    )
+                                                    Toast.makeText(context, "Added $name schedule! ✨", Toast.LENGTH_SHORT).show()
+                                                }
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("+ 1-Tap", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = FocusAccent)
+                                        }
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
@@ -538,6 +568,13 @@ fun AppLimitsAndSchedulesScreen(
                                         text = timing,
                                         fontSize = 10.sp,
                                         color = FocusMuted
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "✏️ Tap to customize",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = FocusAccent
                                     )
                                 }
                             }
@@ -560,7 +597,11 @@ fun AppLimitsAndSchedulesScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.openScheduleForEditing(schedule)
+                                },
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (isActive) FocusPanelLight else FocusPanel
@@ -861,16 +902,6 @@ fun AppLimitsAndSchedulesScreen(
         )
     }
 
-    // --- ADD SCHEDULE DIALOG ---
-    if (viewModel.showAddScheduleModal) {
-        AddScheduleDialog(
-            viewModel = viewModel,
-            onClose = {
-                viewModel.showAddScheduleModal = false
-                viewModel.editingScheduleItem = null
-            }
-        )
-    }
 }
 
 // --- APP LIMIT GAUGE CARD COMPONENT ---

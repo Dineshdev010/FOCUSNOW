@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -297,27 +298,48 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
                 }
             }
 
-            // Crown Points Badge Pill (Regain Style)
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(FocusPanelLight)
-                    .border(1.dp, FocusAccent.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.showRewardsStoreModal = true
-                    }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("👑", fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "${viewModel.focusCoins}",
-                        color = FocusAccent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                // Crown Points Badge Pill (Regain Style)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(FocusPanelLight)
+                        .border(1.dp, FocusAccent.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showRewardsStoreModal = true
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("👑", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${viewModel.focusCoins}",
+                            color = FocusAccent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // Settings Shortcut Button
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(FocusPanelLight)
+                        .border(1.dp, FocusBorder, CircleShape)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.showSettingsScreen = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("⚙️", fontSize = 13.sp)
                 }
             }
         }

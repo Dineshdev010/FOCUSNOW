@@ -64,7 +64,10 @@ fun ProductiveWhitelistDialog(
             .background(FocusBackground.copy(alpha = 0.95f))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .clickable { onClose() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClose() },
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -378,18 +381,9 @@ private fun ProductiveAppRow(
                 Text(item.emoji, fontSize = 20.sp)
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
+                    val isEdu = item.category.contains("Education", ignoreCase = true) || item.id.contains("duolingo", ignoreCase = true)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = item.name,
-                            color = FocusWhite,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f, fill = false),
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        val isEdu = item.category.contains("Education", ignoreCase = true) || item.id.contains("duolingo", ignoreCase = true)
-                        if (isEdu) {
+if (isEdu) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier

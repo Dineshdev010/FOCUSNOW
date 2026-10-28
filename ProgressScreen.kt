@@ -31,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +48,7 @@ import com.focusflow.app.viewmodel.FocusFlowViewModel
 @Composable
 fun ProgressScreen(viewModel: FocusFlowViewModel) {
     val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scrollState = rememberScrollState()
 
     val totalHours = String.format(java.util.Locale.US, "%.1f", viewModel.totalFocusMinutes / 60f)
@@ -60,7 +62,7 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
     ) {
         Spacer(modifier = Modifier.height(10.dp))
 
-        val context = androidx.compose.ui.platform.LocalContext.current
+        // context reference
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -991,7 +993,7 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
         Spacer(modifier = Modifier.height(20.dp))
 
         // Real Device App Screen Time (UsageStatsManager)
-        val context = androidx.compose.ui.platform.LocalContext.current
+        // context reference
         Card(
             colors = CardDefaults.cardColors(containerColor = FocusPanel),
             shape = RoundedCornerShape(22.dp),
