@@ -92,6 +92,7 @@ fun EmergencyPassDialog(
             shape = RoundedCornerShape(26.dp),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .widthIn(max = 540.dp)
                 .fillMaxHeight(0.90f)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -132,13 +133,16 @@ fun EmergencyPassDialog(
                                 color = FocusAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
+                                letterSpacing = 1.sp,
+                                maxLines = 1
                             )
                             Text(
                                 text = "60-Second Temporary Access",
                                 color = FocusWhite,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

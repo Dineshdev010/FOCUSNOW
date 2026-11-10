@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,14 +61,19 @@ fun CodeArenaScreen(
     var isCorrect by remember { mutableStateOf(false) }
 
     AtmosphericZenBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 860.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp)
+            ) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(
@@ -365,6 +371,7 @@ fun CodeArenaScreen(
         }
 
         Spacer(modifier = Modifier.height(80.dp))
+        }
     }
     }
 }

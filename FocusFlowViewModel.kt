@@ -1041,20 +1041,25 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
 
     // --- REGAIN CLONE: MICRO-SESSION PASS ENGINE ---
     fun startMicroSession(packageName: String, appName: String, minutes: Int, intention: String = "Quick Task") {
-        repository.startMicroSession(packageName, appName, minutes, intention)
+        val resolvedPkg = if (packageName.isNotBlank()) {
+            packageName
+        } else {
+            blockedApps.find { it.name.equals(appName, ignoreCase = true) || appName.contains(it.name, ignoreCase = true) }?.packageName ?: ""
+        }
+        repository.startMicroSession(resolvedPkg, appName, minutes, intention)
         repository.recordIntentionalPassGranted()
-        if (packageName.isNotBlank()) {
-            repository.incrementTodayAppOpenCount(packageName)
+        if (resolvedPkg.isNotBlank()) {
+            repository.incrementTodayAppOpenCount(resolvedPkg)
         }
         activeMicroSession = repository.getActiveMicroSession()
         habitResistanceStats = repository.getHabitResistanceStats()
         showMindfulPauseModal = false
         showRegainTimesUpModal = false
 
-        if (packageName.isNotBlank()) {
+        if (resolvedPkg.isNotBlank()) {
             try {
                 val context = getApplication<Application>().applicationContext
-                val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(resolvedPkg)
                 if (launchIntent != null) {
                     launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                     context.startActivity(launchIntent)
@@ -1503,13 +1508,20 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun grantEmergencyPass(appName: String = "Instagram Reels", durationSeconds: Int = 60) {
+        val targetPkg = when {
+            appName.contains(".") -> appName
+            focusLockdownPackageName.isNotBlank() -> focusLockdownPackageName
+            mindfulPausePackageName.isNotBlank() -> mindfulPausePackageName
+            else -> blockedApps.find { it.name.equals(appName, ignoreCase = true) }?.packageName ?: ""
+        }
+        val passKey = if (targetPkg.isNotBlank()) targetPkg else appName
         emergencyPassApp = appName
         isEmergencyPassActive = true
         emergencyPassSecondsLeft = durationSeconds
         showEmergencyPassModal = false
         showMindfulPauseModal = false
         showFocusLockdownModal = false
-        repository.setEmergencyPass(appName, durationSeconds)
+        repository.setEmergencyPass(passKey, durationSeconds)
         viewModelScope.launch {
             while (emergencyPassSecondsLeft > 0) {
                 delay(1000L)
@@ -1521,7 +1533,6 @@ class FocusFlowViewModel(application: Application) : AndroidViewModel(applicatio
                 com.focusflow.app.service.FloatingFocusIslandService.stop(context)
             } catch (_: Exception) {}
         }
-        val targetPkg = if (appName.contains(".")) appName else focusLockdownPackageName
         if (targetPkg.isNotBlank()) {
             try {
                 val context = getApplication<Application>().applicationContext

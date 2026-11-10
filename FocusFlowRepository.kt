@@ -307,12 +307,12 @@ class FocusFlowRepository(private val context: Context) {
                         continue
                     }
                     val origBlocked = obj.optBoolean("isBlocked", true)
-                    // Educational apps are permanently immune, YouTube whole-app block is driven by user shield rule, while Shorts is intercepted via short-form blocker
-                    val isBlocked = if (isEducationalApp(pkg)) {
+                    // Educational apps and office/workspace tools are immune; all other apps strictly respect user unblock state
+                    val isBlocked = if (isEducationalApp(pkg) || isOfficeOrWorkspaceApp(pkg)) {
                         false
-                    } else if (pkg == "com.google.android.youtube") {
-                        isPackageInBlockedSet("com.google.android.youtube")
-                    } else origBlocked
+                    } else {
+                        origBlocked && isPackageInBlockedSet(pkg)
+                    }
                     list.add(
                         BlockedApp(
                             name = obj.getString("name"),
@@ -619,14 +619,33 @@ class FocusFlowRepository(private val context: Context) {
         return getFocusSchedules().firstOrNull { it.isCurrentlyActive() }
     }
 
+    fun isSocialOrDistractingApp(pkg: String): Boolean {
+        val target = pkg.lowercase()
+        return target.contains("instagram") ||
+                target.contains("tiktok") ||
+                target.contains("musically") ||
+                target.contains("twitter") ||
+                target.contains("reddit") ||
+                target.contains("snapchat") ||
+                target.contains("facebook") ||
+                target.contains("netflix") ||
+                target.contains("pinterest") ||
+                target.contains("tumblr")
+    }
+
     fun getActiveScheduleBlockingApp(pkg: String): FocusSchedule? {
         if (isOfficeOrWorkspaceApp(pkg)) return null
-        val activeSchedules = getFocusSchedules().filter { it.isCurrentlyActive() }
+        if (isEducationalApp(pkg)) return null
+        if (isAlwaysAllowed(pkg)) return null
+        if (isEmergencyPassActiveFor(pkg)) return null
+
+        val activeSchedules = getFocusSchedules().filter { it.isEnabled && it.isCurrentlyActive() }
         return activeSchedules.firstOrNull { schedule ->
             if (schedule.targetAppPackages.isNotEmpty()) {
-                schedule.targetAppPackages.contains(pkg)
+                schedule.targetAppPackages.contains(pkg) ||
+                (isSocialOrDistractingApp(pkg) && schedule.targetAppPackages.any { isSocialOrDistractingApp(it) })
             } else {
-                isPackageInBlockedSet(pkg)
+                isPackageInBlockedSet(pkg) || isSocialOrDistractingApp(pkg)
             }
         }
     }
@@ -914,6 +933,7 @@ class FocusFlowRepository(private val context: Context) {
 
     fun isMicroSessionActiveFor(packageName: String): Boolean {
         val session = getActiveMicroSession() ?: return false
+        if (session.packageName.isBlank() || packageName.isBlank()) return false
         if (session.packageName != packageName && !packageName.contains(session.packageName)) {
             return false
         }
@@ -922,6 +942,7 @@ class FocusFlowRepository(private val context: Context) {
 
     fun hasMicroSessionJustExpired(packageName: String): Boolean {
         val session = getActiveMicroSession() ?: return false
+        if (session.packageName.isBlank() || packageName.isBlank()) return false
         if (session.packageName != packageName && !packageName.contains(session.packageName)) {
             return false
         }
@@ -1812,12 +1833,15 @@ class FocusFlowRepository(private val context: Context) {
 
     fun isEmergencyPassActiveFor(packageName: String): Boolean {
         val app = prefs.getString(KEY_EMERGENCY_PASS_APP, null) ?: return false
+        if (app.isBlank() || packageName.isBlank()) return false
         val expiry = prefs.getLong(KEY_EMERGENCY_PASS_EXPIRY, 0L)
         val now = System.currentTimeMillis()
         if (now < expiry) {
             val simpleTarget = packageName.lowercase()
             val simpleSaved = app.lowercase()
-            return simpleTarget.contains(simpleSaved) || simpleSaved.contains(simpleTarget)
+            if (simpleTarget == simpleSaved || simpleTarget.contains(simpleSaved) || simpleSaved.contains(simpleTarget)) return true
+            val tokenSaved = simpleSaved.split(" ", "/", "_", "-").firstOrNull { it.length > 2 }
+            if (tokenSaved != null && simpleTarget.contains(tokenSaved)) return true
         }
         return false
     }
@@ -1988,7 +2012,8 @@ class FocusFlowRepository(private val context: Context) {
 
         // 3. Workspace Messaging & Video Conferencing
         if (target == "com.slack" || target.startsWith("com.slack")) return true
-        if (target == "com.whatsapp" || target == "com.whatsapp.w4b" || target.startsWith("com.whatsapp")) return true
+        // Recognize all WhatsApp editions (standard, business, dual apps, clones)
+        if (target.contains("whatsapp")) return true
         if (target == "us.zoom.videomeetings" || target.contains(".zoom.") || target.startsWith("us.zoom")) return true
         if (target.contains("webex") || target.contains("cisco.wx2")) return true
         if (target == "com.skype.raider" || target == "com.skype.m2") return true
@@ -2449,9 +2474,6 @@ class FocusFlowRepository(private val context: Context) {
     }
 
     fun setAppBlockedState(packageName: String, isBlocked: Boolean) {
-        // Office apps, workspace, and educational apps are protected and can never be blocked
-        if (isOfficeOrWorkspaceApp(packageName) || isEducationalApp(packageName)) return
-
         val currentSet = (prefs.getStringSet(KEY_BLOCKED_APP_PACKAGES_SET, null) ?: defaultBlockedPackages.filter { isPackageInstalled(it) }.toSet()).toMutableSet()
         if (isBlocked) {
             currentSet.add(packageName)
@@ -2465,6 +2487,19 @@ class FocusFlowRepository(private val context: Context) {
         val index = currentApps.indexOfFirst { it.packageName == packageName }
         if (index >= 0) {
             currentApps[index] = currentApps[index].copy(isBlocked = isBlocked)
+            saveBlockedApps(currentApps)
+        } else if (isBlocked) {
+            val label = getAppNameFromPackage(packageName)
+            currentApps.add(
+                BlockedApp(
+                    name = label,
+                    packageName = packageName,
+                    category = "Blocked Apps",
+                    iconEmoji = "🛡️",
+                    isBlocked = true,
+                    dailyLimitMinutes = 15
+                )
+            )
             saveBlockedApps(currentApps)
         }
     }

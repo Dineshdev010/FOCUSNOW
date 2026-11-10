@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -69,10 +70,14 @@ fun GoalsScreen(viewModel: FocusFlowViewModel) {
     val activeGoals = goals.filter { !it.isCompleted }
     val completedGoals = goals.filter { it.isCompleted }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .widthIn(max = 860.dp)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
         ) {
@@ -430,6 +435,7 @@ fun CreateGoalDialog(
             border = BorderStroke(1.dp, FocusBorder),
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = 520.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null

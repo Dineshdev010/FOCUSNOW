@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,12 +87,17 @@ fun AchievementsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit) {
     }
 
     AtmosphericZenBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 860.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
         // Sticky Header with close
         Row(
             modifier = Modifier
@@ -318,6 +324,7 @@ fun AchievementsScreen(viewModel: FocusFlowViewModel, onClose: () -> Unit) {
 
             Spacer(modifier = Modifier.height(80.dp))
         }
+    }
     }
     }
 }

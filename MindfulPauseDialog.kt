@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -212,6 +213,7 @@ fun MindfulPauseDialog(
             shape = RoundedCornerShape(26.dp),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .widthIn(max = 600.dp)
                 .fillMaxHeight(0.92f)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -231,7 +233,10 @@ fun MindfulPauseDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f).padding(end = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -239,11 +244,13 @@ fun MindfulPauseDialog(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            if (isTimesUpMode) "TIME'S UP • REGAIN CONTROL" else "REGAIN • MINDFUL INTERVENTION",
+                            text = if (isTimesUpMode) "TIME'S UP • REGAIN CONTROL" else "REGAIN • MINDFUL INTERVENTION",
                             color = if (isTimesUpMode) PriorityHigh else FocusAccent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            letterSpacing = 1.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     Box(
@@ -720,6 +727,7 @@ fun MindfulPauseDialog(
                                     disabledContainerColor = FocusPanelLight.copy(alpha = 0.5f)
                                 ),
                                 shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp)
@@ -728,9 +736,10 @@ fun MindfulPauseDialog(
                                 Text(
                                     text = label,
                                     color = if (mins == 5) FocusAccent else FocusWhite,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }

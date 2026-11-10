@@ -117,6 +117,7 @@ fun AlarmRingingDialog(
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier
                 .fillMaxWidth(0.90f)
+                .widthIn(max = 480.dp)
                 .border(
                     2.dp,
                     Brush.verticalGradient(

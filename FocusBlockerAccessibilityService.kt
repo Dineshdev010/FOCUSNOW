@@ -153,27 +153,32 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
 
     override fun onCreate() {
         super.onCreate()
-        repository = FocusFlowRepository(applicationContext)
+        try {
+            repository = FocusFlowRepository(applicationContext)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        val info = serviceInfo ?: AccessibilityServiceInfo()
-        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
-                AccessibilityEvent.TYPE_VIEW_SCROLLED or
-                AccessibilityEvent.TYPE_VIEW_CLICKED
-        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC or AccessibilityServiceInfo.FEEDBACK_HAPTIC
-        info.flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
-                AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-        info.notificationTimeout = 50L
-        serviceInfo = info
+        try {
+            repository = FocusFlowRepository(applicationContext)
+            // Static configuration is fully loaded from res/xml/accessibility_service_config.xml.
+            // Do NOT reassign serviceInfo dynamically; on Realme/Oppo/OnePlus (ColorOS), dynamic re-assignment
+            // causes the system AccessibilityManagerService to show "This service is malfunctioning."
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
-        val pkg = event.packageName?.toString() ?: return
+        try {
+            if (event == null) return
+            if (!::repository.isInitialized) {
+                repository = FocusFlowRepository(applicationContext)
+            }
+            val pkg = event.packageName?.toString() ?: return
 
         // Ignore self
         if (pkg == packageName) return
@@ -184,7 +189,10 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         // 0b. Never intercept educational and learning apps (Duolingo, Khan Academy, Quizlet, etc.)
         if (repository.isEducationalApp(pkg)) return
 
-        // 0c. Never intercept if user has an active Emergency Pass for this app
+        // 0c. Never intercept Office, Workspace, Messaging or WhatsApp
+        if (repository.isOfficeOrWorkspaceApp(pkg) || repository.isWorkAppAllowed(pkg)) return
+
+        // 0d. Never intercept if user has an active Emergency Pass for this app
         if (repository.isEmergencyPassActiveFor(pkg)) return
 
         val now = System.currentTimeMillis()
@@ -298,15 +306,20 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
 
         // Gather all relevant window roots safely
         val rootsToCheck = mutableListOf<AccessibilityNodeInfo>()
-        rootInActiveWindow?.let { rootsToCheck.add(it) }
         try {
-            for (w in windows) {
-                w.root?.let { if (!rootsToCheck.contains(it)) rootsToCheck.add(it) }
+            rootInActiveWindow?.let { rootsToCheck.add(it) }
+        } catch (_: Exception) {}
+        try {
+            windows?.let { winList ->
+                for (w in winList) {
+                    w.root?.let { if (!rootsToCheck.contains(it)) rootsToCheck.add(it) }
+                }
             }
-        } catch (ignored: Exception) {}
+        } catch (_: Exception) {}
 
         // 1. Browser Website & Incognito Interception (Chrome, Brave, Firefox, Edge, etc.)
-        if (BROWSER_PACKAGES.contains(pkg) && shortFormConfig.blockWebDoomscrolling) {
+        val isProductiveHourActive = repository.isFocusSessionActive() || repository.isWorkModeActive() || repository.getCurrentlyActiveSchedule() != null
+        if (BROWSER_PACKAGES.contains(pkg) && (shortFormConfig.blockWebDoomscrolling || isProductiveHourActive || repository.getWebShieldSettings().blockSocialWeb)) {
             val webSettings = repository.getWebShieldSettings()
 
             // 1a. Incognito / Private Tab Blocker
@@ -383,18 +396,27 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         }
 
         // 5. Whole App Blocking, Regain Morning Shield, Bedtime Curfew & Daily Limits
-        if (repository.isOfficeOrWorkspaceApp(pkg)) {
-            // Office apps and workspace are strictly exempt from all blocking, curfews, schedules, and limits
+        if (repository.isOfficeOrWorkspaceApp(pkg) || repository.isWorkAppAllowed(pkg)) {
+            // Office apps, messaging, and workspace are strictly exempt from all blocking, curfews, schedules, and limits
             return
         }
 
+        val blockingSchedule = repository.getActiveScheduleBlockingApp(pkg)
         val isExplicitlyBlocked = repository.isPackageInBlockedSet(pkg)
-        val isCurfewActive = repository.isBedtimeCurfewActive()
-        val isMorningActive = repository.isMorningProtectionCurrentlyActive()
         val blockedApps = repository.getBlockedApps()
         val matchedApp = blockedApps.find { it.packageName == pkg }
-        val isOverDailyLimit = matchedApp != null && matchedApp.usedMinutesToday >= matchedApp.dailyLimitMinutes
-        val blockingSchedule = repository.getActiveScheduleBlockingApp(pkg)
+        
+        // Critical: Daily Limit, schedules, and curfews ONLY apply if the app is currently configured as blocked!
+        val isAppConfiguredAsBlocked = isExplicitlyBlocked || (matchedApp != null && matchedApp.isBlocked)
+
+        // If not blocked by an active focus schedule, and not configured as blocked by user, allow it!
+        if (blockingSchedule == null && !isAppConfiguredAsBlocked) {
+            return
+        }
+
+        val isCurfewActive = repository.isBedtimeCurfewActive()
+        val isMorningActive = repository.isMorningProtectionCurrentlyActive()
+        val isOverDailyLimit = matchedApp != null && matchedApp.isBlocked && matchedApp.usedMinutesToday >= matchedApp.dailyLimitMinutes
         val isStrictMode = repository.isStrictModeEnabled()
         val isStrictFocusActive = isStrictMode && repository.isFocusSessionActive()
         val isProductive = repository.isProductiveAppAllowed(pkg)
@@ -405,13 +427,16 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
         val isYouTubeExemptFromWholeBlock = (pkg == "com.google.android.youtube") && !isExplicitlyBlocked && blockingSchedule == null
 
         if (!isYouTubeExemptFromWholeBlock && !isProductive && !isWorkAllowed && !isEducational) {
-            val shouldBlock = isExplicitlyBlocked ||
-                    (matchedApp != null && matchedApp.isBlocked) ||
-                    isCurfewActive ||
-                    isMorningActive ||
-                    isStrictFocusActive ||
-                    blockingSchedule != null ||
-                    isOverDailyLimit
+            val shouldBlock = when {
+                isStrictFocusActive -> true
+                blockingSchedule != null -> true
+                isOverDailyLimit -> true
+                isCurfewActive -> true
+                isMorningActive -> true
+                isExplicitlyBlocked -> true
+                matchedApp?.isBlocked == true -> true
+                else -> false
+            }
 
             if (shouldBlock) {
                 repository.recordAppOpen(pkg)
@@ -441,7 +466,8 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
             hasWarned80Percent = false
         } else {
             val elapsedMinutes = (now - foregroundAppStartTime) / 60000L
-            if (matchedApp != null) {
+            // Only enforce continuous limit if the app is currently capped / blocked by the user
+            if (matchedApp != null && matchedApp.isBlocked) {
                 val liveTotalMinutes = matchedApp.usedMinutesToday + elapsedMinutes.toInt()
                 if (liveTotalMinutes >= matchedApp.dailyLimitMinutes && (now - lastInterceptionTime > 3000L)) {
                     lastInterceptionTime = now
@@ -459,6 +485,10 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
                 }
             }
             checkScrollNudge(pkg, now)
+        }
+        } catch (t: Throwable) {
+            // Prevent service crash so Android OS never flags "This service is malfunctioning."
+            t.printStackTrace()
         }
     }
 
@@ -523,21 +553,44 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
             queue.add(root)
             var visitedCount = 0
 
-            while (queue.isNotEmpty() && visitedCount < 90) {
+            while (queue.isNotEmpty() && visitedCount < 150) {
                 val node = queue.poll() ?: continue
                 visitedCount++
 
                 val viewId = node.viewIdResourceName?.lowercase() ?: ""
                 val text = node.text?.toString()?.lowercase() ?: ""
                 val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+                val candidate = "$text $desc".trim()
 
-                val isUrlNode = URL_BAR_IDS.any { viewId.contains(it) }
+                if (candidate.isNotBlank()) {
+                    // Direct Instagram and social web detection across any node (catches address bar, titles, web tabs)
+                    if (candidate.contains("instagram.com") ||
+                        (candidate.contains("instagram") && (candidate.contains("reels") || candidate.contains("explore") || candidate.contains("stories") || candidate.contains("login") || candidate.contains("feed")))
+                    ) {
+                        return Pair(true, "instagram.com (Social Media Web Shield 📱)")
+                    }
+                    if (candidate.contains("tiktok.com") ||
+                        candidate.contains("reddit.com") ||
+                        candidate.contains("twitter.com") ||
+                        candidate.contains("x.com/") ||
+                        candidate.contains("facebook.com") ||
+                        candidate.contains("threads.net")
+                    ) {
+                        val (blocked, categoryLabel) = repository.isDomainBlocked(candidate)
+                        if (blocked && categoryLabel != null) {
+                            return Pair(true, "$candidate ($categoryLabel)")
+                        }
+                    }
 
-                if (isUrlNode) {
-                    val candidate = "$text $desc".trim()
-                    val (blocked, categoryLabel) = repository.isDomainBlocked(candidate)
-                    if (blocked && categoryLabel != null) {
-                        return Pair(true, "$candidate ($categoryLabel)")
+                    val isUrlNode = URL_BAR_IDS.any { viewId.contains(it) } ||
+                            viewId.contains("omnibox") || viewId.contains("url") || viewId.contains("search") || viewId.contains("address") ||
+                            node.className?.toString()?.contains("EditText", ignoreCase = true) == true
+
+                    if (isUrlNode || candidate.contains(".com") || candidate.contains(".net") || candidate.contains(".org") || candidate.contains("http")) {
+                        val (blocked, categoryLabel) = repository.isDomainBlocked(candidate)
+                        if (blocked && categoryLabel != null) {
+                            return Pair(true, "$candidate ($categoryLabel)")
+                        }
                     }
                 }
 
@@ -800,7 +853,15 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
             }
         } catch (ignored: Exception) {}
 
-        // 3. Standard dialer and calling packages
+        // 3. Default SMS messaging app
+        try {
+            val defaultSms = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
+            if (defaultSms != null && pkg == defaultSms) {
+                return true
+            }
+        } catch (ignored: Exception) {}
+
+        // 4. Standard dialer, phone, emergency and messaging packages across all OEMs
         val dialerPackages = setOf(
             "com.google.android.dialer",
             "com.android.dialer",
@@ -808,7 +869,18 @@ class FocusBlockerAccessibilityService : AccessibilityService() {
             "com.android.phone",
             "com.android.incallui",
             "com.google.android.apps.messaging",
-            "com.android.mms"
+            "com.samsung.android.messaging",
+            "com.android.mms",
+            "com.coloros.mms",
+            "com.oppo.mms",
+            "com.oneplus.mms",
+            "com.realme.dialer",
+            "com.oplus.dialer",
+            "com.miui.telephony",
+            "com.android.contacts",
+            "org.telegram.messenger",
+            "org.telegram.messenger.web",
+            "org.thoughtcrime.securesms"
         )
         if (dialerPackages.contains(pkg)) return true
 

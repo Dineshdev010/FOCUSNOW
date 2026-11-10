@@ -356,6 +356,25 @@ class FloatingFocusIslandService : Service() {
         return String.format(java.util.Locale.US, "%d:%02d", m, s)
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        floatingView?.let { view ->
+            params?.let { p ->
+                val metrics = resources.displayMetrics
+                val viewWidth = view.width.takeIf { it > 0 } ?: dpToPx(180)
+                val viewHeight = view.height.takeIf { it > 0 } ?: dpToPx(44)
+                val maxX = (metrics.widthPixels - viewWidth).coerceAtLeast(0)
+                val maxY = (metrics.heightPixels - viewHeight).coerceAtLeast(0)
+
+                p.x = p.x.coerceIn(0, maxX)
+                p.y = p.y.coerceIn(getStatusBarHeight(), maxY)
+                try {
+                    windowManager?.updateViewLayout(view, p)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         countDownTimer?.cancel()

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -184,21 +185,30 @@ fun StatCard(
                 color = FocusSecondary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
+                letterSpacing = 0.5.sp,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
                 color = FocusWhite,
                 fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
             if (subtitle != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = subtitle,
                     color = FocusMuted,
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -400,7 +410,7 @@ fun GoalSelectorDialog(
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = FocusPanel),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp).widthIn(max = 520.dp)
         ) {
             Column(modifier = Modifier.padding(22.dp)) {
                 Text(
@@ -489,6 +499,7 @@ fun AntiTamperAlertDialog(onClose: () -> Unit) {
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth(0.88f)
+                .widthIn(max = 500.dp)
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null
@@ -831,5 +842,29 @@ fun AtmosphericZenBackground(
 
         // Host foreground UI content with full transparency support
         content()
+    }
+}
+
+/**
+ * Responsive container that clamps content width on tablets and desktop
+ * while filling 100% width on standard mobile phones.
+ */
+@Composable
+fun ResponsiveScreenContainer(
+    modifier: Modifier = Modifier,
+    maxWidthDp: Int = 960,
+    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = maxWidthDp.dp),
+            contentAlignment = Alignment.TopCenter,
+            content = content
+        )
     }
 }

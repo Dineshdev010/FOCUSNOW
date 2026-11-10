@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -91,12 +92,17 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
     val savedHours = String.format(java.util.Locale.US, "%.1f", viewModel.savedScreenTimeMinutes / 60f)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 860.dp)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+        ) {
         Spacer(modifier = Modifier.height(10.dp))
 
         // Header with Brand and Top Actions (Responsive for all phone screens)
@@ -359,23 +365,46 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Regained Today:", color = FocusSecondary, fontSize = 11.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("$savedHours hrs saved", color = FocusAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            if (viewModel.hasUsageAccessPermission && viewModel.totalDeviceScreenTimeMinutes > 0) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("•", color = FocusSecondary, fontSize = 11.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("${viewModel.totalDeviceScreenTimeString} screen", color = FocusWhite, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                            }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Regained Today:",
+                                color = FocusSecondary,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            Text(
+                                text = "$savedHours hrs saved",
+                                color = FocusAccent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
+                        if (viewModel.hasUsageAccessPermission && viewModel.totalDeviceScreenTimeMinutes > 0) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Screen Time: ${viewModel.totalDeviceScreenTimeString}",
+                                color = FocusWhite.copy(alpha = 0.85f),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            "Mindful Pause Active \u2022 Tap to practice breathwork",
+                            text = "Mindful Pause Active • Tap to practice breathwork",
                             color = FocusWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -393,39 +422,39 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                         modifier = Modifier
                             .weight(1f)
                             .background(FocusPanel, RoundedCornerShape(12.dp))
-                            .padding(10.dp)
+                            .padding(8.dp)
                     ) {
                         Column {
-                            Text("Dopamine Health", color = FocusSecondary, fontSize = 10.sp)
-                            Text("${viewModel.dopamineScore}% Zen", color = FocusAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Dopamine Health", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                            Text("${viewModel.dopamineScore}% Zen", color = FocusAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .background(FocusPanel, RoundedCornerShape(12.dp))
-                            .padding(10.dp)
+                            .padding(8.dp)
                     ) {
                         Column {
-                            Text("Reels Intercepted", color = FocusSecondary, fontSize = 10.sp)
-                            Text("${viewModel.reelsBlockedCount} Blocked", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text("Reels Intercepted", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                            Text("${viewModel.reelsBlockedCount} Blocked", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .background(FocusPanel, RoundedCornerShape(12.dp))
-                            .padding(10.dp)
+                            .padding(8.dp)
                     ) {
                         Column {
-                            Text("Interventions", color = FocusSecondary, fontSize = 10.sp)
-                            Text("${viewModel.interventionsAccepted} Resisted", color = FocusWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Interventions", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                            Text("${viewModel.interventionsAccepted} Resisted", color = FocusWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -1352,13 +1381,17 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = app.name,
                                         color = FocusWhite,
                                         fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
                                     if (app.isHardLock) {
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -1381,7 +1414,10 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                                     },
                                     color = if (isLimitExceeded) PriorityHigh else FocusSecondary,
                                     fontSize = 11.sp,
-                                    fontWeight = if (isLimitExceeded) FontWeight.SemiBold else FontWeight.Normal
+                                    fontWeight = if (isLimitExceeded) FontWeight.SemiBold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
@@ -1429,23 +1465,26 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Limit selector chips with + Custom action
+                        // Limit selector chips with + Custom action (Responsive weighted flex bar)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = "Daily Cap:",
                                 color = FocusMuted,
                                 fontSize = 11.sp,
-                                modifier = Modifier.padding(end = 4.dp)
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.padding(end = 2.dp)
                             )
 
                             listOf(15, 30, 45, 60).forEach { limit ->
                                 val isSelected = app.dailyLimitMinutes == limit
                                 Box(
                                     modifier = Modifier
+                                        .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(if (isSelected) FocusAccent else FocusPanelLight)
                                         .border(
@@ -1457,13 +1496,16 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             viewModel.updateAppDailyLimit(app.packageName, limit)
                                         }
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = "${limit}m",
                                         color = if (isSelected) FocusBackground else FocusWhite,
                                         fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -1471,6 +1513,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                             // Custom Button
                             Box(
                                 modifier = Modifier
+                                    .weight(1.3f)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(FocusPanelLight)
                                     .border(1.dp, FocusAccent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
@@ -1478,13 +1521,16 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         viewModel.editingAppLimitItem = app
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Custom ⚙️",
+                                    text = "Custom",
                                     color = FocusAccent,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -1712,6 +1758,7 @@ fun HomeScreen(viewModel: FocusFlowViewModel) {
         }
 
         Spacer(modifier = Modifier.height(72.dp))
+        }
     }
 
     val editingApp = viewModel.editingAppLimitItem

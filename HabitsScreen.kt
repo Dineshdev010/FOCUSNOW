@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -72,10 +73,14 @@ fun HabitsScreen(viewModel: FocusFlowViewModel) {
     // Weekly day abbreviations for the streak summary
     val daysOfWeek = listOf("M", "T", "W", "T", "F", "S", "S")
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .widthIn(max = 860.dp)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
         ) {
@@ -446,6 +451,7 @@ fun CreateHabitDialog(
             border = BorderStroke(1.dp, FocusBorder),
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = 520.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null

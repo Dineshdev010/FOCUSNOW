@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -34,8 +35,16 @@ fun HabitsAndGoalsScreen(viewModel: FocusFlowViewModel) {
     var activeSubTab by remember { mutableStateOf("Habits") } // "Habits" or "Goals"
     val haptic = LocalHapticFeedback.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Spacer(modifier = Modifier.height(12.dp))
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 860.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
 
         // Top Segmented Switcher Pill
         Box(
@@ -100,6 +109,7 @@ fun HabitsAndGoalsScreen(viewModel: FocusFlowViewModel) {
             } else {
                 GoalsScreen(viewModel = viewModel)
             }
+        }
         }
     }
 }

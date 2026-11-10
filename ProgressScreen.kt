@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,12 +55,17 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
     val totalHours = String.format(java.util.Locale.US, "%.1f", viewModel.totalFocusMinutes / 60f)
     val savedHours = String.format(java.util.Locale.US, "%.1f", viewModel.savedScreenTimeMinutes / 60f)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 860.dp)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+        ) {
         Spacer(modifier = Modifier.height(10.dp))
 
         // context reference
@@ -69,13 +75,15 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
                     text = "DOPAMINE DETOX & METRICS",
                     color = FocusAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -83,8 +91,10 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                 Text(
                     text = "Your Reclaimed Time",
                     color = FocusWhite,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -98,24 +108,25 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                         viewModel.sendDailyReportNotification(context)
                         android.widget.Toast.makeText(context, "Daily report sent to notifications! 📊", android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("📊", fontSize = 14.sp)
+                    Text("📊", fontSize = 13.sp)
                     Text(
                         text = "Report",
                         color = FocusAccent,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
 
         // 1. Date Range Filter Selector
@@ -221,7 +232,7 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                 // 4-Column Grid for Metrics
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Task Velocity
                     Box(
@@ -229,23 +240,28 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                             .weight(1f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(FocusPanelLight)
-                            .padding(10.dp)
+                            .padding(horizontal = 6.dp, vertical = 8.dp)
                     ) {
                         Column {
-                            Text("Tasks", color = FocusSecondary, fontSize = 10.sp)
+                            Text("Tasks", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "$completedTasksCount/$totalTasksCount",
                                 color = FocusWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (overdueTasksCount > 0) "$overdueTasksCount Overdue" else "0 Overdue",
                                 color = if (overdueTasksCount > 0) CategoryUrgent else FocusAccent,
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -256,23 +272,28 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                             .weight(1f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(FocusPanelLight)
-                            .padding(10.dp)
+                            .padding(horizontal = 6.dp, vertical = 8.dp)
                     ) {
                         Column {
-                            Text("Habits", color = FocusSecondary, fontSize = 10.sp)
+                            Text("Habits", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "$habitsDoneToday/$activeHabitsCount",
                                 color = FocusWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "🔥 $bestHabitStreak Best",
                                 color = FocusAccent,
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -283,23 +304,28 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                             .weight(1f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(FocusPanelLight)
-                            .padding(10.dp)
+                            .padding(horizontal = 6.dp, vertical = 8.dp)
                     ) {
                         Column {
-                            Text("Goals", color = FocusSecondary, fontSize = 10.sp)
+                            Text("Goals", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "$completedGoalsCount Done",
+                                text = if (viewModel.goals.isNotEmpty()) "$completedGoalsCount/${viewModel.goals.size}" else "$completedGoalsCount",
                                 color = FocusWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "$avgGoalProgress% Avg",
                                 color = FocusAccent,
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -310,28 +336,32 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                             .weight(1f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(FocusPanelLight)
-                            .padding(10.dp)
+                            .padding(horizontal = 6.dp, vertical = 8.dp)
                     ) {
                         Column {
-                            Text("Sprints", color = FocusSecondary, fontSize = 10.sp)
+                            Text("Sprints", color = FocusSecondary, fontSize = 10.sp, maxLines = 1, softWrap = false)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "${sessionLogs.size.coerceAtLeast(viewModel.completedSessions)} Logged",
+                                text = "${sessionLogs.size.coerceAtLeast(viewModel.completedSessions)}",
                                 color = FocusWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "${avgSessionMinutes}m Avg",
                                 color = FocusAccent,
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Progress Toward Daily Target Bar
@@ -425,7 +455,9 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                             Text(
                                 text = "Personal Best: ${viewModel.longestStreakDays} Days",
                                 color = FocusSecondary,
-                                fontSize = 11.sp
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -444,7 +476,9 @@ fun ProgressScreen(viewModel: FocusFlowViewModel) {
                                 text = "${viewModel.streakFreezes} Freeze",
                                 color = FocusAccent,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -2697,5 +2731,6 @@ fun DoomscrollDefenseRadarCard(stats: List<DoomscrollDefenseStat>) {
         }
 
         Spacer(modifier = Modifier.height(72.dp))
+        }
     }
 }

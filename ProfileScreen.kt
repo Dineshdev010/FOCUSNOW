@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,12 +86,17 @@ fun ProfileScreen(
     }
 
     AtmosphericZenBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 860.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
         // --- TOP NAVIGATION APP BAR ---
         Row(
             modifier = Modifier
@@ -814,6 +820,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(44.dp))
         }
+    }
     }
     }
 

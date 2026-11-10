@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -96,12 +97,17 @@ fun AppLimitsAndSchedulesScreen(
     }
 
     AtmosphericZenBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 860.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
         // --- TOP NAVIGATION HEADER ---
         Row(
             modifier = Modifier
@@ -872,6 +878,7 @@ fun AppLimitsAndSchedulesScreen(
         }
     }
     }
+    }
 
     // --- CUSTOM APP TIME LIMIT DIALOG ---
     val appToEdit = viewModel.editingAppLimitItem
@@ -961,13 +968,17 @@ private fun AppLimitGaugeCard(
             Spacer(modifier = Modifier.width(14.dp))
 
             // App Details
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = app.name,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = FocusWhite
+                        color = FocusWhite,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (app.isHardLock) {
                         Spacer(modifier = Modifier.width(5.dp))
@@ -988,7 +999,10 @@ private fun AppLimitGaugeCard(
                     text = "${app.usedMinutesToday}m / ${app.dailyLimitMinutes}m used • ${(usedRatio * 100).toInt()}%",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = gaugeColor
+                    color = gaugeColor,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Row(
@@ -998,13 +1012,17 @@ private fun AppLimitGaugeCard(
                     Text(
                         text = if (isExceeded) "Limit Exceeded" else "${remainingMins}m left",
                         fontSize = 10.sp,
-                        color = if (isExceeded) PriorityHigh else FocusSecondary
+                        color = if (isExceeded) PriorityHigh else FocusSecondary,
+                        maxLines = 1,
+                        softWrap = false
                     )
                     Text("•", fontSize = 10.sp, color = FocusMuted)
                     Text(
                         text = "${app.opensToday} opens today",
                         fontSize = 10.sp,
-                        color = FocusMuted
+                        color = FocusMuted,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }

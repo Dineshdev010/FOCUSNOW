@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -264,13 +265,18 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
 
     val activeColor = if (viewModel.currentModeIndex == 0) FocusAccent else CategoryWork
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 860.dp)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         // App Header: Leaf Icon + "FocusNow" + "Better Focus • Bigger Goals" + Crown Points Pill
         Row(
             modifier = Modifier
@@ -1778,6 +1784,7 @@ fun FocusScreen(viewModel: FocusFlowViewModel) {
         }
 
         Spacer(modifier = Modifier.height(44.dp))
+        }
     }
 
     // Custom Timer Duration Dialog

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -93,12 +94,18 @@ fun OnboardingScreen(viewModel: FocusFlowViewModel) {
         )
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(FocusBackground)
-            .statusBarsPadding()
+            .background(FocusBackground),
+        contentAlignment = Alignment.TopCenter
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 680.dp)
+                .statusBarsPadding()
+        ) {
         // Top Navigation Header
         Row(
             modifier = Modifier
@@ -635,6 +642,7 @@ fun OnboardingScreen(viewModel: FocusFlowViewModel) {
                 )
             }
         }
+    }
     }
 }
 
